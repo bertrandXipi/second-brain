@@ -10,6 +10,9 @@ discord-ingest-bot/workdir/
 discord-ingest-bot/spool/
 discord-ingest-bot/fiches-veille/
 
+# Batch processor working directories
+batch-processor/workdir/
+
 # Logs
 *.log
 

@@ -1,0 +1,20 @@
+{
+  "name": "discord-ingest-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord pour capturer des URLs de veille et les pousser sur Git",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "simple-git": "^3.22.0",
+    "uuid": "^9.0.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

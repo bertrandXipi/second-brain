@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+*.local
+
+# Bot working directories
+discord-ingest-bot/workdir/
+discord-ingest-bot/spool/
+discord-ingest-bot/fiches-veille/
+
+# Logs
+*.log
+
+# OS
+.DS_Store

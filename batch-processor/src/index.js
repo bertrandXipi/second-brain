@@ -2,11 +2,14 @@ import 'dotenv/config';
 import { readdir, readFile, writeFile, mkdir, rename } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { config } from './config.js';
 import { fetchAndExtract } from './fetch-content.js';
 import { summarizeWithGemini } from './llm-summarize.js';
 import { generateMarkdown } from './markdown-generator.js';
 import { initGit, pullLatest, commitAndPush } from './git-sync.js';
+
+const OBSIDIAN_VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '/Users/bertrand/Sites/fiches-veille';
 
 async function main() {
   console.log('[batch] starting...');
@@ -100,6 +103,17 @@ async function main() {
   }
 
   console.log(`\n[batch] done: ${processed} processed, ${failed} failed`);
+
+  // Sync Obsidian vault
+  if (processed > 0 && existsSync(OBSIDIAN_VAULT_PATH)) {
+    console.log('[batch] syncing obsidian vault...');
+    try {
+      execSync('git pull', { cwd: OBSIDIAN_VAULT_PATH, stdio: 'inherit' });
+      console.log('[batch] vault synced');
+    } catch (err) {
+      console.error('[batch] vault sync failed:', err.message);
+    }
+  }
 }
 
 main().catch(err => {

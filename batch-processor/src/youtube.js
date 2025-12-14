@@ -1,6 +1,4 @@
 import { execSync } from 'child_process';
-import { writeFileSync, unlinkSync, readFileSync } from 'fs';
-import { tmpdir } from 'os';
 import path from 'path';
 
 const YOUTUBE_REGEX = /(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -69,81 +67,29 @@ async function getVideoMetadata(videoId) {
 }
 
 async function getTranscript(videoId) {
-  const tempDir = tmpdir();
-  const tempFile = path.join(tempDir, `yt-transcript-${videoId}`);
-  
   try {
-    // Try to get auto-generated subtitles
-    const cmd = `yt-dlp --write-auto-sub --sub-lang "fr-orig,fr,en" --sub-format "vtt" --skip-download -o "${tempFile}" "https://www.youtube.com/watch?v=${videoId}" 2>&1`;
-    console.log('[youtube] running:', cmd);
+    const scriptPath = path.join(path.dirname(import.meta.url.replace('file://', '')), '../scripts/get-transcript.py');
+    console.log('[youtube] fetching transcript via python...');
     
-    const output = execSync(cmd, { encoding: 'utf-8', timeout: 60000 });
-    console.log('[youtube] yt-dlp output:', output.slice(0, 500));
-
-    // Find the subtitle file
-    const { readdirSync } = await import('fs');
-    const allFiles = readdirSync(tempDir);
-    const files = allFiles.filter(f => f.startsWith(`yt-transcript-${videoId}`) && f.endsWith('.vtt'));
-    console.log('[youtube] found subtitle files:', files);
+    const result = execSync(`python3 "${scriptPath}" "${videoId}"`, {
+      encoding: 'utf-8',
+      timeout: 30000,
+    });
     
-    if (files.length === 0) {
-      console.log('[youtube] no .vtt files found');
+    const data = JSON.parse(result.trim());
+    
+    if (data.available) {
+      console.log(`[youtube] transcript found (${data.language}, ${data.text.length} chars)`);
+      return { available: true, text: data.text };
+    } else {
+      console.log('[youtube] no transcript:', data.error || 'unknown');
       return { available: false, text: '' };
     }
-
-    // Prefer French, then English
-    const frFile = files.find(f => f.includes('.fr'));
-    const enFile = files.find(f => f.includes('.en'));
-    const subtitleFile = frFile || enFile || files[0];
-    const fullPath = path.join(tempDir, subtitleFile);
-
-    console.log('[youtube] reading:', fullPath);
-    const subtitleContent = readFileSync(fullPath, 'utf-8');
     
-    // Cleanup
-    for (const f of files) {
-      try { unlinkSync(path.join(tempDir, f)); } catch {}
-    }
-
-    // Parse VTT to plain text
-    const text = parseVTT(subtitleContent);
-    console.log('[youtube] transcript length:', text.length);
-    return { available: true, text };
-
   } catch (err) {
     console.log('[youtube] transcript error:', err.message);
     return { available: false, text: '' };
   }
-}
-
-function parseVTT(vttContent) {
-  // Remove VTT header and timestamps, keep only text
-  const lines = vttContent.split('\n');
-  const textLines = [];
-  
-  for (const line of lines) {
-    // Skip headers, timestamps, and empty lines
-    if (line.startsWith('WEBVTT') || 
-        line.startsWith('Kind:') || 
-        line.startsWith('Language:') ||
-        line.includes('-->') ||
-        line.match(/^\d+$/) ||
-        line.trim() === '') {
-      continue;
-    }
-    
-    // Remove HTML tags and timing tags
-    const cleanLine = line
-      .replace(/<[^>]+>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .trim();
-    
-    if (cleanLine && !textLines.includes(cleanLine)) {
-      textLines.push(cleanLine);
-    }
-  }
-
-  return textLines.join(' ');
 }
 
 function formatDuration(seconds) {

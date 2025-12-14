@@ -49,6 +49,7 @@ async function main() {
   let processed = 0;
   let failed = 0;
   const createdFiches = [];
+  const noTranscriptVideos = [];
 
   for (const file of jsonFiles) {
     const filePath = path.join(pendingDir, file);
@@ -60,7 +61,14 @@ async function main() {
       console.log(`\n[batch] processing: ${item.url}`);
 
       // Fetch and extract
-      const { title, content: textContent } = await fetchAndExtract(item.url);
+      const fetchResult = await fetchAndExtract(item.url);
+      const { title, content: textContent } = fetchResult;
+
+      // Track YouTube videos without transcript
+      if (fetchResult.isYouTube && !fetchResult.hasTranscript) {
+        console.log('[batch] ⚠️ YouTube video without transcript');
+        noTranscriptVideos.push(item.url);
+      }
 
       // LLM summarize
       const llmResult = await summarizeWithGemini(textContent, item.tags);
@@ -71,7 +79,7 @@ async function main() {
       }
 
       // Generate markdown
-      const { filename, content: mdContent, folder } = generateMarkdown(item, llmResult, item.url);
+      const { filename, content: mdContent, folder } = generateMarkdown(item, llmResult, item.url, fetchResult);
 
       // Write fiche
       const ficheFolder = path.join(fichesDir, folder);
@@ -119,7 +127,11 @@ async function main() {
   }
 
   // Notify Discord
-  await notifyDiscord(processed, failed, createdFiches);
+  const notifications = [...createdFiches];
+  if (noTranscriptVideos.length > 0) {
+    notifications.push(`⚠️ **${noTranscriptVideos.length} vidéo(s) sans transcription:**\n${noTranscriptVideos.map(u => `• ${u}`).join('\n')}`);
+  }
+  await notifyDiscord(processed, failed, notifications);
 }
 
 main().catch(err => {

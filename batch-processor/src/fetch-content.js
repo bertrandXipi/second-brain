@@ -1,14 +1,41 @@
 import { JSDOM } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { config } from './config.js';
+import { isYouTubeUrl, getYouTubeContent } from './youtube.js';
 
 export async function fetchAndExtract(url) {
   console.log(`[fetch] ${url}`);
 
+  // Handle YouTube URLs specially
+  if (isYouTubeUrl(url)) {
+    return await fetchYouTube(url);
+  }
+
   const html = await fetchWithRetry(url);
   const { title, content, excerpt } = extractContent(html, url);
 
-  return { title, content, excerpt, html };
+  return { title, content, excerpt, html, isYouTube: false, hasTranscript: true };
+}
+
+async function fetchYouTube(url) {
+  const ytContent = await getYouTubeContent(url);
+  
+  let content = '';
+  if (ytContent.hasTranscript) {
+    content = ytContent.content;
+  } else {
+    // Fallback to description if no transcript
+    content = ytContent.metadata.description || 'Pas de transcription disponible.';
+  }
+
+  return {
+    title: ytContent.title,
+    content,
+    excerpt: content.slice(0, 500),
+    isYouTube: true,
+    hasTranscript: ytContent.hasTranscript,
+    youtubeMetadata: ytContent.metadata,
+  };
 }
 
 async function fetchWithRetry(url) {

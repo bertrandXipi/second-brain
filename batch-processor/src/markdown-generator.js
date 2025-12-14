@@ -1,4 +1,4 @@
-export function generateMarkdown(item, llmResult, sourceUrl) {
+export function generateMarkdown(item, llmResult, sourceUrl, fetchResult = {}) {
   const now = new Date().toISOString();
   const datePrefix = now.slice(0, 10);
   const slug = createSlug(llmResult.title || 'untitled');
@@ -6,6 +6,7 @@ export function generateMarkdown(item, llmResult, sourceUrl) {
   const frontmatter = {
     title: llmResult.title || 'Sans titre',
     source_url: sourceUrl,
+    source_type: fetchResult.isYouTube ? 'youtube' : 'article',
     date_captured: item.created_at,
     date_processed: now,
     category: llmResult.category || 'Tech',
@@ -19,6 +20,13 @@ export function generateMarkdown(item, llmResult, sourceUrl) {
     discord_message_url: item.discord?.message_url || null,
     status: 'published',
   };
+
+  // Add YouTube-specific metadata
+  if (fetchResult.isYouTube && fetchResult.youtubeMetadata) {
+    frontmatter.youtube_channel = fetchResult.youtubeMetadata.channel;
+    frontmatter.youtube_duration = fetchResult.youtubeMetadata.duration;
+    frontmatter.has_transcript = fetchResult.hasTranscript;
+  }
 
   const concepts = llmResult.concepts || [];
   const wikilinks = concepts.map(c => `[[${c}]]`).join(' | ');
@@ -44,7 +52,11 @@ ${item.note || 'Aucune note.'}
 
 ## Source
 
-- [Article original](${sourceUrl})
+- [${fetchResult.isYouTube ? 'Vidéo YouTube' : 'Article original'}](${sourceUrl})${fetchResult.isYouTube && fetchResult.youtubeMetadata ? `
+- Chaîne: ${fetchResult.youtubeMetadata.channel}
+- Durée: ${fetchResult.youtubeMetadata.duration || 'N/A'}` : ''}${fetchResult.isYouTube && !fetchResult.hasTranscript ? `
+
+> ⚠️ **Pas de transcription disponible** — Cette fiche est basée uniquement sur la description de la vidéo.` : ''}
 `;
 
   return {

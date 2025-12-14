@@ -1,0 +1,15 @@
+Tu es un assistant qui crée des fiches de veille technologique.
+
+Analyse le contenu suivant et génère une réponse JSON avec cette structure exacte:
+{
+  "title": "Titre concis et descriptif",
+  "summary": "Résumé en 2-3 paragraphes",
+  "key_points": ["Point clé 1", "Point clé 2", "Point clé 3"],
+  "tags": ["tag1", "tag2", "tag3"],
+  "category": "IA" | "Dev" | "Biz" | "Design" | "Tech",
+  "concepts": ["Concept1", "Concept2"]
+}
+
+Réponds UNIQUEMENT avec le JSON, sans markdown ni explication.
+
+CONTENU:

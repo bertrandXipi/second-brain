@@ -8,6 +8,7 @@ import { fetchAndExtract } from './fetch-content.js';
 import { summarizeWithGemini } from './llm-summarize.js';
 import { generateMarkdown } from './markdown-generator.js';
 import { initGit, pullLatest, commitAndPush } from './git-sync.js';
+import { notifyDiscord } from './discord-notify.js';
 
 const OBSIDIAN_VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '/Users/bertrand/Sites/fiches-veille';
 
@@ -47,6 +48,7 @@ async function main() {
 
   let processed = 0;
   let failed = 0;
+  const createdFiches = [];
 
   for (const file of jsonFiles) {
     const filePath = path.join(pendingDir, file);
@@ -78,6 +80,7 @@ async function main() {
       }
       await writeFile(path.join(ficheFolder, filename), mdContent);
       console.log(`[batch] written: fiches/${folder}/${filename}`);
+      createdFiches.push(`${folder}/${filename}`);
 
       // Move to processed
       await rename(filePath, path.join(processedDir, file));
@@ -114,6 +117,9 @@ async function main() {
       console.error('[batch] vault sync failed:', err.message);
     }
   }
+
+  // Notify Discord
+  await notifyDiscord(processed, failed, createdFiches);
 }
 
 main().catch(err => {

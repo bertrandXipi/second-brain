@@ -69,52 +69,49 @@ async function getVideoMetadata(videoId) {
 }
 
 async function getTranscript(videoId) {
-  const tempFile = path.join(tmpdir(), `yt-transcript-${videoId}`);
+  const tempDir = tmpdir();
+  const tempFile = path.join(tempDir, `yt-transcript-${videoId}`);
   
   try {
-    // Try to get French transcript first (including fr-orig), then English
-    execSync(
-      `yt-dlp --write-auto-sub --sub-lang "fr.*,en.*,fr,en" --sub-format "vtt" --skip-download -o "${tempFile}" "https://www.youtube.com/watch?v=${videoId}"`,
-      { encoding: 'utf-8', timeout: 60000, stdio: 'pipe' }
-    );
-
-    // Find the subtitle file - check multiple possible names
-    const { readdirSync } = await import('fs');
-    const dir = tmpdir();
-    const files = readdirSync(dir).filter(f => f.startsWith(`yt-transcript-${videoId}`) && f.endsWith('.vtt'));
+    // Try to get auto-generated subtitles
+    const cmd = `yt-dlp --write-auto-sub --sub-lang "fr-orig,fr,en" --sub-format "vtt" --skip-download -o "${tempFile}" "https://www.youtube.com/watch?v=${videoId}" 2>&1`;
+    console.log('[youtube] running:', cmd);
     
+    const output = execSync(cmd, { encoding: 'utf-8', timeout: 60000 });
+    console.log('[youtube] yt-dlp output:', output.slice(0, 500));
+
+    // Find the subtitle file
+    const { readdirSync } = await import('fs');
+    const allFiles = readdirSync(tempDir);
+    const files = allFiles.filter(f => f.startsWith(`yt-transcript-${videoId}`) && f.endsWith('.vtt'));
+    console.log('[youtube] found subtitle files:', files);
+    
+    if (files.length === 0) {
+      console.log('[youtube] no .vtt files found');
+      return { available: false, text: '' };
+    }
+
     // Prefer French, then English
     const frFile = files.find(f => f.includes('.fr'));
     const enFile = files.find(f => f.includes('.en'));
     const subtitleFile = frFile || enFile || files[0];
+    const fullPath = path.join(tempDir, subtitleFile);
 
-    if (!subtitleFile) {
-      return { available: false, text: '' };
-    }
-
-    const possibleFiles = [path.join(dir, subtitleFile)];
-
-    let subtitleContent = null;
-    for (const file of possibleFiles) {
-      try {
-        subtitleContent = readFileSync(file, 'utf-8');
-        unlinkSync(file);
-        break;
-      } catch (e) {
-        console.log('[youtube] could not read:', file, e.message);
-      }
-    }
-
-    if (!subtitleContent) {
-      return { available: false, text: '' };
+    console.log('[youtube] reading:', fullPath);
+    const subtitleContent = readFileSync(fullPath, 'utf-8');
+    
+    // Cleanup
+    for (const f of files) {
+      try { unlinkSync(path.join(tempDir, f)); } catch {}
     }
 
     // Parse VTT to plain text
     const text = parseVTT(subtitleContent);
+    console.log('[youtube] transcript length:', text.length);
     return { available: true, text };
 
   } catch (err) {
-    console.log('[youtube] no transcript available');
+    console.log('[youtube] transcript error:', err.message);
     return { available: false, text: '' };
   }
 }

@@ -71,7 +71,7 @@ async function main() {
       }
 
       // LLM summarize
-      const llmResult = await summarizeWithGemini(textContent, item.tags);
+      const llmResult = await summarizeWithGemini(textContent, item.tags, { isYouTube: fetchResult.isYouTube });
 
       // Use fetched title if LLM didn't provide one
       if (!llmResult.title && title) {

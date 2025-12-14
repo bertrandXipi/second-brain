@@ -6,12 +6,15 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPT_PATH = process.env.PROMPT_PATH || path.join(__dirname, '../prompts/v1.txt');
+const PROMPT_YOUTUBE_PATH = process.env.PROMPT_YOUTUBE_PATH || path.join(__dirname, '../prompts/v1-youtube.txt');
 
-export async function summarizeWithGemini(content, existingTags = []) {
+export async function summarizeWithGemini(content, existingTags = [], options = {}) {
   console.log('[llm] calling gemini...');
 
-  // Load prompt from file
-  const promptTemplate = readFileSync(PROMPT_PATH, 'utf-8');
+  // Load prompt from file - use YouTube prompt if specified
+  const promptPath = options.isYouTube ? PROMPT_YOUTUBE_PATH : PROMPT_PATH;
+  const promptTemplate = readFileSync(promptPath, 'utf-8');
+  console.log(`[llm] using prompt: ${options.isYouTube ? 'youtube' : 'default'}`);
 
   // Truncate content if too long
   const truncated = content.slice(0, 15000);

@@ -74,19 +74,25 @@ function extractConcepts(fiches) {
 }
 
 async function generateDefinition(concept, fiches) {
-  const context = fiches.slice(0, 5).map(f => {
+  const context = fiches.slice(0, 8).map(f => {
     const summaryMatch = f.content.match(/## Résumé\n\n([\s\S]*?)(?=\n## )/);
-    return summaryMatch?.[1]?.slice(0, 500) || '';
+    const keyPointsMatch = f.content.match(/## Points clés\n\n([\s\S]*?)(?=\n## )/);
+    return `${summaryMatch?.[1]?.slice(0, 400) || ''}\n${keyPointsMatch?.[1]?.slice(0, 300) || ''}`;
   }).join('\n---\n');
 
   const prompt = `Concept: "${concept}"
+Nombre de mentions dans ma veille: ${fiches.length}
 
 Contexte (extraits de fiches de veille qui mentionnent ce concept):
 ${context}
 
-Génère une définition concise (2-3 phrases) de ce concept dans le contexte de la veille technologique. 
-Si le concept est trop générique ou manque de contexte, dis-le.
-Réponds uniquement avec la définition, sans introduction.`;
+Génère une fiche glossaire pour ce concept avec:
+1. **Définition** (2-3 phrases claires)
+2. **Pourquoi c'est important** (1-2 phrases sur la pertinence actuelle)
+3. **À retenir** (1 point clé actionnable)
+
+Format ta réponse en texte simple, sans titres markdown. Sois concis et pratique.
+Si le concept est trop générique, concentre-toi sur son usage dans le contexte tech/IA.`;
 
   const { writeFileSync, unlinkSync } = await import('fs');
   const { tmpdir } = await import('os');
@@ -131,6 +137,9 @@ async function main() {
     await mkdir(glossaryDir, { recursive: true });
   }
 
+  // Thresholds for regenerating definitions
+  const REGEN_THRESHOLDS = [5, 10, 20, 50, 100];
+
   // Check existing glossary files
   let existingFiles = [];
   try {
@@ -139,22 +148,41 @@ async function main() {
 
   let created = 0;
   let updated = 0;
+  let regenerated = 0;
 
   for (const [concept, fichesForConcept] of significantConcepts) {
     const filename = `${concept}.md`;
     const filePath = path.join(glossaryDir, filename);
     const exists = existingFiles.includes(filename);
 
-    // Generate definition only for new concepts
     let definition = '';
-    if (!exists) {
+    let shouldRegenerate = false;
+
+    if (exists) {
+      const existing = await readFile(filePath, 'utf-8');
+      const mentionsMatch = existing.match(/mentions:\s*(\d+)/);
+      const previousMentions = mentionsMatch ? parseInt(mentionsMatch[1]) : 0;
+      const currentMentions = fichesForConcept.length;
+
+      // Check if we crossed a threshold
+      for (const threshold of REGEN_THRESHOLDS) {
+        if (previousMentions < threshold && currentMentions >= threshold) {
+          shouldRegenerate = true;
+          console.log(`[glossary] ${concept}: crossed ${threshold} mentions, regenerating`);
+          break;
+        }
+      }
+
+      if (!shouldRegenerate) {
+        const defMatch = existing.match(/## Définition\n\n([\s\S]*?)(?=\n## )/);
+        definition = defMatch?.[1]?.trim() || '';
+      }
+    }
+
+    if (!exists || shouldRegenerate) {
       console.log(`[glossary] generating definition for: ${concept}`);
       definition = await generateDefinition(concept, fichesForConcept);
-    } else {
-      // Keep existing definition
-      const existing = await readFile(filePath, 'utf-8');
-      const defMatch = existing.match(/## Définition\n\n([\s\S]*?)(?=\n## )/);
-      definition = defMatch?.[1]?.trim() || '';
+      if (shouldRegenerate) regenerated++;
     }
 
     const content = `---
@@ -184,7 +212,7 @@ ${fichesForConcept.map(f => `- [[${f.name}]]`).join('\n')}
     }
   }
 
-  console.log(`[glossary] created: ${created}, updated: ${updated}`);
+  console.log(`[glossary] created: ${created}, updated: ${updated}, regenerated: ${regenerated}`);
 
   // Generate index
   const indexContent = `---
@@ -202,8 +230,8 @@ ${significantConcepts.map(([concept, fiches]) =>
   await writeFile(path.join(glossaryDir, '_index.md'), indexContent);
 
   // Commit and push
-  if (created > 0 || updated > 0) {
-    await commitAndPush(`chore(glossary): ${created} created, ${updated} updated`);
+  if (created > 0 || updated > 0 || regenerated > 0) {
+    await commitAndPush(`chore(glossary): ${created} created, ${updated} updated, ${regenerated} regenerated`);
   }
 
   // Sync Obsidian vault
@@ -217,7 +245,7 @@ ${significantConcepts.map(([concept, fiches]) =>
   }
 
   // Notify Discord
-  await notifyDiscord(created, 0, [`📖 Glossaire mis à jour: ${created} nouveaux, ${updated} actualisés`]);
+  await notifyDiscord(created, 0, [`📖 Glossaire: ${created} nouveaux, ${updated} actualisés, ${regenerated} enrichis`]);
 
   console.log('[glossary] done');
 }

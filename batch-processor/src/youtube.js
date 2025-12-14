@@ -71,7 +71,7 @@ async function getTranscript(videoId) {
     const scriptPath = path.join(path.dirname(import.meta.url.replace('file://', '')), '../scripts/get-transcript.py');
     console.log('[youtube] fetching transcript via python...');
     
-    const result = execSync(`python3 "${scriptPath}" "${videoId}"`, {
+    const result = execSync(`/usr/local/bin/python3 "${scriptPath}" "${videoId}"`, {
       encoding: 'utf-8',
       timeout: 30000,
     });

@@ -31,8 +31,17 @@ export async function pullLatest() {
   console.log('[git] pulling...');
   try {
     await git.pull('origin', config.github.branch, ['--rebase']);
+    console.log('[git] pull ok');
   } catch (err) {
-    console.log('[git] pull warning:', err.message);
+    // Retry once after a short delay
+    console.log('[git] pull failed, retrying...');
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      await git.pull('origin', config.github.branch, ['--rebase']);
+      console.log('[git] pull ok (retry)');
+    } catch (retryErr) {
+      throw new Error(`Git pull failed: ${retryErr.message}`);
+    }
   }
 }
 

@@ -1,0 +1,12 @@
+{
+  "name": "NotebookLM Batch - 9h",
+  "version": "1.0.0",
+  "description": "Process pending URLs with NotebookLM at 9am",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Execute the NotebookLM batch processor:\n\n1. Run the script: batch-processor/process-pending-notebooklm.js\n2. This will process all pending URLs in batch-processor/workdir/repo/mobile-share/pending/\n3. Each URL will be added to NotebookLM and get a detailed French summary\n4. Markdown fiches will be created in batch-processor/workdir/repo/fiches/\n5. Everything will be committed to Git\n6. Pull the changes in the Obsidian vault: git -C /Users/bertrand/Sites/fiches-veille pull origin main\n\nIMPORTANT: Use the MCP NotebookLM tools (mcp_notebooklm_*) that are available in Kiro context."
+  }
+}

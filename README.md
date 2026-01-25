@@ -1,130 +1,71 @@
-# Second Brain — Veille Automatisée
+# Second Brain - Veille IA Automatisée
 
-Système de veille technologique : capture d'URLs via Discord, résumé automatique avec Gemini, fiches Markdown consultables dans Obsidian.
+Système de veille automatisé utilisant NotebookLM comme RAG pour analyser et synthétiser des contenus.
 
 ## Architecture
 
 ```
-Mobile → Discord #veille-inbox → Bot (VM GCP) → GitHub fiches-veille
-                                                       ↓
-                                       Batch (Mac cron 3x/jour) → Gemini
-                                                       ↓
-                                              Fiches Markdown + Obsidian
+Discord (URL) → Bot (Google Cloud) → NotebookLM MCP → Fiche Markdown → Git → Obsidian
 ```
 
-## Fonctionnalités
+## Fonctionnement
 
-- **Capture Discord** : partage une URL dans `#veille-inbox`, le bot crée un fichier JSON dans `pending/`
-- **Support YouTube** : récupère automatiquement la transcription des vidéos
-- **Résumé IA** : Gemini génère titre, résumé, points clés, tags, concepts
-- **Fiches Markdown** : format Obsidian avec frontmatter YAML et wikilinks
-- **Digest hebdo** : synthèse des tendances de la semaine (dimanche 20h)
-- **Notifications Discord** : résumé du batch via webhook
+1. **Capture** : Poster une URL dans Discord
+2. **Traitement** : NotebookLM analyse le contenu et génère un résumé détaillé en français
+3. **Stockage** : Fiche markdown créée et pushée sur GitHub
+4. **Sync** : Obsidian synchronise automatiquement toutes les 6h
 
-## Structure du projet
+## Structure
 
 ```
-second-brain/
-├── discord-ingest-bot/     # Bot Discord (Node.js)
+├── discord-ingest-bot/     # Bot Discord (tourne sur Google Cloud)
 │   ├── src/
-│   └── .env
-├── batch-processor/        # Traitement des URLs (Node.js)
+│   │   ├── discord.js      # Gestion messages Discord
+│   │   ├── processor.js    # Traitement URLs via NotebookLM
+│   │   └── ...
+│   └── workdir/repo/       # Clone du repo fiches-veille
+│
+├── batch-processor/        # Scripts de traitement batch
 │   ├── src/
-│   ├── scripts/            # Script Python pour transcriptions YouTube
-│   ├── prompts/            # Prompts Gemini (v1.txt, v1-youtube.txt)
-│   └── .env
-└── README.md
+│   │   ├── notebooklm-http.js  # Client HTTP pour MCP NotebookLM
+│   │   ├── markdown-generator-v2.js
+│   │   └── ...
+│   └── workdir/repo/       # Clone local du repo
+│
+├── docs/                   # Documentation
+├── scripts/                # Scripts de déploiement
+└── ROADMAP-VEILLE.md       # Idées et évolutions futures
 ```
 
-## Prérequis
+## Déploiement
 
-- Node.js 20+
-- Python 3.11+ avec `youtube-transcript-api`
-- Gemini CLI configuré (`gemini auth`)
-- yt-dlp (pour métadonnées YouTube)
-- gcloud CLI (pour la VM)
-
-## Installation
-
-### 1. Bot Discord (VM Google Cloud)
-
-Le bot tourne sur une VM `e2-micro` (free tier) en `us-central1-a`.
+Le bot Discord et le serveur MCP NotebookLM tournent sur une instance Google Compute `veille-bot`.
 
 ```bash
-# Se connecter à la VM
+# SSH sur le serveur
 gcloud compute ssh veille-bot --zone=us-central1-a
 
-# Voir les logs
+# Logs du bot
 sudo journalctl -u veille-bot -f
 
-# Redémarrer le bot
+# Logs du MCP server
+sudo journalctl -u notebooklm-mcp -f
+
+# Redémarrer
 sudo systemctl restart veille-bot
-
-# Status
-sudo systemctl status veille-bot
+sudo systemctl restart notebooklm-mcp
 ```
 
-### 2. Batch Processor (Mac local)
+## Sync Obsidian
 
-```bash
-cd batch-processor
-npm install
-cp .env.example .env  # Configurer les variables
-```
+LaunchAgent macOS qui fait un `git pull` toutes les 6h :
+- Fichier : `~/Library/LaunchAgents/com.veille.obsidian-sync.plist`
+- Vault : `/Users/bertrand/Sites/fiches-veille`
 
-**Variables d'environnement (.env) :**
-```
-GITHUB_REPO_URL=https://github.com/xxx/fiches-veille.git
-GITHUB_PAT=xxx
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/xxx
-OBSIDIAN_VAULT_PATH=/Users/xxx/Sites/fiches-veille
-```
+## Roadmap
 
-### 3. Cron automatique (launchd)
-
-```bash
-# Batch 3x/jour (8h, 14h, 20h)
-cp batch-processor/com.veille.batch.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.veille.batch.plist
-
-# Digest hebdo (dimanche 20h)
-cp batch-processor/com.veille.digest.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.veille.digest.plist
-```
-
-## Commandes utiles
-
-```bash
-# Lancer le batch manuellement
-cd ~/Sites/second-brain/batch-processor && npm start
-
-# Générer le digest manuellement
-cd ~/Sites/second-brain/batch-processor && npm run digest
-
-# Mettre à jour le vault Obsidian
-cd ~/Sites/fiches-veille && git pull
-
-# Tester une transcription YouTube
-python3 batch-processor/scripts/get-transcript.py VIDEO_ID
-```
-
-## Prompts Gemini
-
-Les prompts sont dans `batch-processor/prompts/` :
-- `v1.txt` : articles web classiques
-- `v1-youtube.txt` : vidéos YouTube (résumé plus détaillé)
-
-Tu peux les modifier sans toucher au code.
-
-## Repos GitHub
-
-- **second-brain** : https://github.com/bertrandXipi/second-brain (code)
-- **fiches-veille** : https://github.com/bertrandXipi/fiches-veille (données)
-
-## Console GCP
-
-https://console.cloud.google.com/compute/instances?project=gen-lang-client-0084987367
-
-## Branches en cours
-
-- `feature/auto-glossary` : génération automatique d'un glossaire de concepts
+Voir [ROADMAP-VEILLE.md](ROADMAP-VEILLE.md) pour les évolutions prévues :
+- Slash commands Discord (`/ask`, `/insight`, `/idea`...)
+- Notifications quotidiennes
+- Podcasts et flashcards automatiques
+- Notebooks thématiques

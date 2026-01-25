@@ -49,6 +49,16 @@ export async function summarizeWithGemini(content, existingTags = [], options = 
 
   } catch (err) {
     console.error('[llm] error:', err.message);
+    
+    // Check if it's a rate limit or timeout error
+    if (err.message.includes('ETIMEDOUT') || 
+        err.message.includes('rate limit') || 
+        err.message.includes('quota')) {
+      const rateLimitError = new Error('Rate limit or timeout - should retry later');
+      rateLimitError.isRateLimit = true;
+      throw rateLimitError;
+    }
+    
     throw err;
   } finally {
     try { unlinkSync(tempFile); } catch {}

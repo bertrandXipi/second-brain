@@ -2,6 +2,7 @@ import simpleGit from 'simple-git';
 import { mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { config } from './config.js';
+import { notifyError } from './discord-notify.js';
 
 let git = null;
 
@@ -40,7 +41,9 @@ export async function pullLatest() {
       await git.pull('origin', config.github.branch, ['--rebase']);
       console.log('[git] pull ok (retry)');
     } catch (retryErr) {
-      throw new Error(`Git pull failed: ${retryErr.message}`);
+      const error = new Error(`Git pull failed after retry: ${retryErr.message}`);
+      await notifyError(error, 'Échec de synchronisation Git (pull)');
+      throw error;
     }
   }
 }
@@ -48,18 +51,24 @@ export async function pullLatest() {
 export async function commitAndPush(message) {
   console.log('[git] committing...');
   
-  await git.add('.');
-  const result = await git.commit(message);
+  try {
+    await git.add('.');
+    const result = await git.commit(message);
 
-  if (!result.commit) {
-    console.log('[git] nothing to commit');
-    return null;
+    if (!result.commit) {
+      console.log('[git] nothing to commit');
+      return null;
+    }
+
+    console.log('[git] pushing...');
+    await git.push('origin', config.github.branch);
+
+    const hash = result.commit.slice(0, 7);
+    console.log(`[git] pushed: ${hash}`);
+    return hash;
+  } catch (err) {
+    const error = new Error(`Git commit/push failed: ${err.message}`);
+    await notifyError(error, 'Échec de synchronisation Git (commit/push)');
+    throw error;
   }
-
-  console.log('[git] pushing...');
-  await git.push('origin', config.github.branch);
-
-  const hash = result.commit.slice(0, 7);
-  console.log(`[git] pushed: ${hash}`);
-  return hash;
 }

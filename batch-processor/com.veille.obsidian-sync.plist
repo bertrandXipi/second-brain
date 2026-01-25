@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.veille.obsidian-sync</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/git</string>
+        <string>-C</string>
+        <string>/Users/bertrand/Sites/fiches-veille</string>
+        <string>pull</string>
+        <string>origin</string>
+        <string>main</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>21600</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/obsidian-sync.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/obsidian-sync-error.log</string>
+</dict>
+</plist>

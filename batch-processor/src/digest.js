@@ -31,7 +31,10 @@ async function getWeekFiches() {
       if (dateMatch) {
         const fileDate = new Date(dateMatch[1]).getTime();
         if (fileDate >= oneWeekAgo) {
-          fiches.push({ file: `${month}/${file}`, content });
+          // Extract source_url from frontmatter
+          const sourceUrlMatch = content.match(/source_url:\s*["']?([^\s"'\n]+)/);
+          const sourceUrl = sourceUrlMatch ? sourceUrlMatch[1] : null;
+          fiches.push({ file: `${month}/${file}`, content, sourceUrl });
         }
       }
     }
@@ -125,6 +128,12 @@ async function main() {
   }
 
   const filename = `${year}-W${String(week).padStart(2, '0')}.md`;
+  
+  // Collect all source URLs
+  const sourceUrls = fiches
+    .map(f => f.sourceUrl)
+    .filter(url => url && url.length > 0);
+
   const fullContent = `---
 type: digest
 year: ${year}
@@ -140,6 +149,10 @@ ${digestContent}
 ## Fiches de la semaine
 
 ${fiches.map(f => `- [[${f.file.replace('.md', '')}]]`).join('\n')}
+
+## Sources (pour NotebookLM)
+
+${sourceUrls.join('\n')}
 `;
 
   await writeFile(path.join(digestDir, filename), fullContent);

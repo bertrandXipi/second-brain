@@ -5,19 +5,17 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { config } from './config.js';
 import { fetchAndExtract } from './fetch-content.js';
-import { summarizeWithGemini } from './llm-summarize.js';
-import { generateMarkdown } from './markdown-generator.js';
+import { addToNotebookLM } from './notebooklm-sync.js';
+import { generateMarkdownV2 } from './markdown-generator-v2.js';
 import { initGit, pullLatest, commitAndPush } from './git-sync.js';
 import { notifyDiscord, notifyError, notifyBatchStart, notifyProgress } from './discord-notify.js';
 
 const OBSIDIAN_VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '/Users/bertrand/Sites/fiches-veille';
 
 async function main() {
-  console.log('[batch] starting...');
+  console.log('[batch-v2] starting with NotebookLM integration...');
 
   await initGit();
-  
-  // Pull only at the very beginning, before any processing
   await pullLatest();
 
   const pendingDir = path.join(config.workdir, config.paths.pending);
@@ -34,7 +32,7 @@ async function main() {
 
   // Get pending items
   if (!existsSync(pendingDir)) {
-    console.log('[batch] no pending directory');
+    console.log('[batch-v2] no pending directory');
     return;
   }
 
@@ -42,16 +40,16 @@ async function main() {
   const jsonFiles = files.filter(f => f.endsWith('.json'));
 
   if (jsonFiles.length === 0) {
-    console.log('[batch] no pending items');
+    console.log('[batch-v2] no pending items');
     return;
   }
 
-  console.log(`[batch] processing ${jsonFiles.length} item(s)`);
+  console.log(`[batch-v2] processing ${jsonFiles.length} item(s)`);
 
   // Notify batch start
   await notifyBatchStart(jsonFiles.length);
 
-  // Warn if too many pending items (might indicate a problem) - only if > 50
+  // Warn if too many pending items
   if (jsonFiles.length > 50) {
     await notifyError(
       new Error(`${jsonFiles.length} liens en attente - accumulation anormale`),
@@ -73,7 +71,7 @@ async function main() {
       const content = await readFile(filePath, 'utf-8');
       const item = JSON.parse(content);
 
-      console.log(`\n[batch] processing: ${item.url}`);
+      console.log(`\n[batch-v2] processing: ${item.url}`);
 
       // Fetch and extract
       const fetchResult = await fetchAndExtract(item.url);
@@ -81,20 +79,19 @@ async function main() {
 
       // Track YouTube videos without transcript
       if (fetchResult.isYouTube && !fetchResult.hasTranscript) {
-        console.log('[batch] ⚠️ YouTube video without transcript');
+        console.log('[batch-v2] ⚠️ YouTube video without transcript');
         noTranscriptVideos.push(item.url);
       }
 
-      // LLM summarize
-      const llmResult = await summarizeWithGemini(textContent, item.tags, { isYouTube: fetchResult.isYouTube });
+      // Add to NotebookLM (replaces Gemini summarization)
+      const notebookResult = await addToNotebookLM(item.url, textContent, {
+        title: title || item.title,
+        tags: item.tags,
+        source: item.source
+      });
 
-      // Use fetched title if LLM didn't provide one
-      if (!llmResult.title && title) {
-        llmResult.title = title;
-      }
-
-      // Generate markdown
-      const { filename, content: mdContent, folder } = generateMarkdown(item, llmResult, item.url, fetchResult);
+      // Generate markdown v2
+      const { filename, content: mdContent, folder } = generateMarkdownV2(item, notebookResult, item.url, fetchResult);
 
       // Write fiche
       const ficheFolder = path.join(fichesDir, folder);
@@ -102,7 +99,7 @@ async function main() {
         await mkdir(ficheFolder, { recursive: true });
       }
       await writeFile(path.join(ficheFolder, filename), mdContent);
-      console.log(`[batch] written: fiches/${folder}/${filename}`);
+      console.log(`[batch-v2] written: fiches/${folder}/${filename}`);
       createdFiches.push(`${folder}/${filename}`);
 
       // Move to processed
@@ -114,15 +111,15 @@ async function main() {
         await notifyProgress(processed + failed + rateLimited, totalItems, filename);
       }
 
-      // Add delay between requests to avoid rate limits (5s for safety)
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Add delay between requests (NotebookLM should have better quotas)
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
     } catch (err) {
-      console.error(`[batch] failed: ${err.message}`);
+      console.error(`[batch-v2] failed: ${err.message}`);
 
       // If rate limit error, keep in pending for retry later
       if (err.isRateLimit) {
-        console.log('[batch] rate limit detected - keeping in pending for retry');
+        console.log('[batch-v2] rate limit detected - keeping in pending for retry');
         rateLimited++;
         continue;
       }
@@ -139,11 +136,11 @@ async function main() {
 
   // Commit and push
   if (processed > 0 || failed > 0) {
-    const msg = `chore(batch): processed ${processed}, failed ${failed}${rateLimited > 0 ? `, rate-limited ${rateLimited}` : ''}`;
+    const msg = `chore(batch-v2): processed ${processed}, failed ${failed}${rateLimited > 0 ? `, rate-limited ${rateLimited}` : ''}`;
     await commitAndPush(msg);
   }
 
-  console.log(`\n[batch] done: ${processed} processed, ${failed} failed${rateLimited > 0 ? `, ${rateLimited} rate-limited (kept in pending)` : ''}`);
+  console.log(`\n[batch-v2] done: ${processed} processed, ${failed} failed${rateLimited > 0 ? `, ${rateLimited} rate-limited (kept in pending)` : ''}`);
 
   // Alert if there are failed items
   if (failed > 0) {
@@ -163,12 +160,12 @@ async function main() {
 
   // Sync Obsidian vault
   if (processed > 0 && existsSync(OBSIDIAN_VAULT_PATH)) {
-    console.log('[batch] syncing obsidian vault...');
+    console.log('[batch-v2] syncing obsidian vault...');
     try {
       execSync('git pull', { cwd: OBSIDIAN_VAULT_PATH, stdio: 'inherit' });
-      console.log('[batch] vault synced');
+      console.log('[batch-v2] vault synced');
     } catch (err) {
-      console.error('[batch] vault sync failed:', err.message);
+      console.error('[batch-v2] vault sync failed:', err.message);
       await notifyError(err, 'Échec de synchronisation du vault Obsidian');
     }
   }
@@ -186,7 +183,7 @@ async function main() {
 }
 
 main().catch(async (err) => {
-  console.error('[batch] fatal:', err);
-  await notifyError(err, 'Erreur fatale lors de l\'exécution du batch');
+  console.error('[batch-v2] fatal:', err);
+  await notifyError(err, 'Erreur fatale lors de l\'exécution du batch v2');
   process.exit(1);
 });

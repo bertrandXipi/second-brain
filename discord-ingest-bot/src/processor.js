@@ -9,6 +9,7 @@ import { writeFile, mkdir, unlink } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { config } from './config.js';
+import { setLastProcessed } from './commands.js';
 
 const WORKDIR = './workdir/repo';
 const PENDING_PATH = 'mobile-share/pending';
@@ -126,14 +127,8 @@ export async function processItem(item, git, discordMessage = null) {
       console.log(`[processor] deleted pending: ${item.id}`);
     }
 
-    // 6. Commit and push - add fiche and processed, stage deleted pending
-    await git.add([
-      `${FICHES_PATH}/${folder}/${filename}`,
-      `${PROCESSED_PATH}/${item.id}.json`
-    ]);
-    
-    // Stage the deletion of pending file
-    await git.add([`${PENDING_PATH}/${item.id}.json`]);
+    // 6. Commit and push - use git add -A to stage all changes
+    await git.add('-A');
 
     const commitMsg = `feat(veille): ${title || 'Nouveau contenu'}\n\nSource: ${item.url}\nNotebookLM: ${notebookResult ? notebookResult.notebook_url : 'N/A'}`;
     const commitResult = await git.commit(commitMsg);
@@ -144,13 +139,20 @@ export async function processItem(item, git, discordMessage = null) {
       const hash = commitResult.commit.slice(0, 7);
       console.log(`[processor] ✅ success: ${hash}`);
 
-      return {
+      const result = {
         success: true,
         title: title,
+        url: item.url,
         commitHash: hash,
         fichePath: `fiches/${folder}/${filename}`,
-        notebookUrl: notebookResult?.notebook_url
+        notebookUrl: notebookResult?.notebook_url,
+        summary: sourceDescription?.summary || null
       };
+      
+      // Store for /last command
+      setLastProcessed(result);
+      
+      return result;
     }
 
     return { success: true, title: title, commitHash: null };
@@ -158,32 +160,30 @@ export async function processItem(item, git, discordMessage = null) {
   } catch (err) {
     console.error(`[processor] ❌ failed:`, err.message);
 
-    // V1 fallback: Write to pending for later processing (instead of failed)
-    // This is useful when fetch fails due to IP blocking (e.g. Reddit blocks Google Cloud IPs)
-    const pendingDir = path.join(WORKDIR, PENDING_PATH);
-    if (!existsSync(pendingDir)) {
-      await mkdir(pendingDir, { recursive: true });
+    // Write to failed directory
+    const failedDir = path.join(WORKDIR, FAILED_PATH);
+    if (!existsSync(failedDir)) {
+      await mkdir(failedDir, { recursive: true });
     }
 
-    // Write item to pending if not already there
-    if (!existsSync(pendingFile)) {
-      await writeFile(pendingFile, JSON.stringify(item, null, 2));
-      console.log(`[processor] written to pending for later: ${item.id}`);
+    // Write error info
+    await writeFile(failedFile, JSON.stringify(item, null, 2));
+    await writeFile(failedFile.replace('.json', '-error.txt'), err.message);
+    console.log(`[processor] written to failed: ${item.id}`);
+
+    // Commit failed item
+    try {
+      await git.add('-A');
+      const commitMsg = `chore(veille): failed processing\n\nURL: ${item.url}\nReason: ${err.message}`;
+      await git.commit(commitMsg);
+      await git.push('origin', config.github.branch);
+    } catch (gitErr) {
+      console.error(`[processor] git error:`, gitErr.message);
     }
 
-    // Commit to pending (V1 behavior)
-    await git.add([`${PENDING_PATH}/${item.id}.json`]);
-
-    const commitMsg = `chore(veille): queued for later processing\n\nURL: ${item.url}\nReason: ${err.message}`;
-    await git.commit(commitMsg);
-    await git.push('origin', config.github.branch);
-
-    console.log(`[processor] ⏳ queued in pending (will process later)`);
-
-    // Don't throw - return a partial success indicating it's queued
     return {
       success: false,
-      queued: true,
+      queued: false,
       error: err.message
     };
   }

@@ -7,6 +7,7 @@ import { normalizeUrl } from './normalize.js';
 import { writeAndPush } from './gitWriter.js';
 import { writeSpool, removeSpool } from './spool.js';
 import { processItem } from './processor.js';
+import { registerCommands, handleCommand, setLastProcessed } from './commands.js';
 
 const WORKDIR = './workdir/repo';
 let git = null;
@@ -20,13 +21,17 @@ export function createClient() {
     ],
   });
 
-  client.once(Events.ClientReady, (c) => {
+  client.once(Events.ClientReady, async (c) => {
     console.log(`[discord] logged in as ${c.user.tag}`);
     // Initialize git for real-time processing
     git = simpleGit(WORKDIR);
+    
+    // Register slash commands
+    await registerCommands(c.user.id);
   });
 
   client.on(Events.MessageCreate, handleMessage);
+  client.on(Events.InteractionCreate, handleCommand);
 
   return client;
 }

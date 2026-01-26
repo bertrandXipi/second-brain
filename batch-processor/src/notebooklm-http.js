@@ -192,6 +192,7 @@ export async function getOrCreateMonthlyNotebook() {
 
 /**
  * Add URL to NotebookLM
+ * Falls back to text content if URL fails (e.g., LinkedIn)
  */
 export async function addToNotebookLM(url, content, metadata = {}) {
   console.log(`[notebooklm-http] adding source: ${url}`);
@@ -200,7 +201,7 @@ export async function addToNotebookLM(url, content, metadata = {}) {
     // Get or create monthly notebook
     const notebookId = await getOrCreateMonthlyNotebook();
     
-    // Add URL as source
+    // Try to add URL as source
     const result = await callMCPTool('notebook_add_url', {
       notebook_id: notebookId,
       url: url
@@ -222,9 +223,44 @@ export async function addToNotebookLM(url, content, metadata = {}) {
     
     throw new Error(`Failed to add source: ${result.error || 'Unknown error'}`);
 
-  } catch (err) {
-    console.error('[notebooklm-http] error adding source:', err.message);
-    throw err;
+  } catch (urlError) {
+    console.log(`[notebooklm-http] URL add failed, trying text fallback: ${urlError.message}`);
+    
+    // Fallback: fetch content and add as text
+    try {
+      const { fetchAndExtract } = await import('./fetch-content.js');
+      const { title, content: fetchedContent } = await fetchAndExtract(url);
+      
+      console.log(`[notebooklm-http] fetched content (${fetchedContent.length} chars), adding as text...`);
+      
+      const notebookId = await getOrCreateMonthlyNotebook();
+      const textResult = await callMCPTool('notebook_add_text', {
+        notebook_id: notebookId,
+        text: fetchedContent,
+        title: title || metadata.title || 'Sans titre',
+      });
+
+      if (textResult.status === 'success') {
+        console.log(`[notebooklm-http] text source added: ${textResult.source.id}`);
+
+        return {
+          notebook_id: notebookId,
+          source_id: textResult.source.id,
+          title: title || metadata.title || 'Sans titre',
+          url: url,
+          notebook_url: `https://notebooklm.google.com/notebook/${notebookId}`,
+          source_url: `https://notebooklm.google.com/notebook/${notebookId}`,
+          tags: metadata.tags || [],
+          fallback: true,
+        };
+      }
+      
+      throw new Error(`Failed to add text source: ${textResult.error || 'Unknown error'}`);
+      
+    } catch (fallbackError) {
+      console.error(`[notebooklm-http] fallback also failed: ${fallbackError.message}`);
+      throw new Error(`Failed to add source (URL and text fallback): ${fallbackError.message}`);
+    }
   }
 }
 

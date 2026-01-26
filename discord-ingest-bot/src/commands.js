@@ -199,9 +199,14 @@ function formatLastItem(item) {
   if (item.summary) {
     reply += `\n**Résumé:**\n`;
     let summary = item.summary;
-    // Truncate if too long for Discord (2000 char limit)
-    if (summary.length > 1400) {
-      summary = summary.slice(0, 1400) + '...\n\n*[Résumé tronqué]*';
+    
+    // Calculate remaining space (Discord limit is 2000 chars)
+    const headerLength = reply.length;
+    const maxSummaryLength = 1800 - headerLength; // Leave some margin
+    
+    // Truncate if too long
+    if (summary.length > maxSummaryLength) {
+      summary = summary.slice(0, maxSummaryLength) + '...\n\n*[Résumé tronqué - voir NotebookLM pour le contenu complet]*';
     }
     reply += summary;
   }
@@ -222,9 +227,14 @@ function formatProcessedItem(item, ficheContent) {
     const summaryMatch = ficheContent.match(/## Résumé[^\n]*\n([\s\S]*?)(?=\n## |$)/);
     if (summaryMatch) {
       let summary = summaryMatch[1].trim();
-      // Truncate if too long for Discord (2000 char limit)
-      if (summary.length > 1500) {
-        summary = summary.slice(0, 1500) + '...\n\n*[Résumé tronqué]*';
+      
+      // Calculate remaining space (Discord limit is 2000 chars)
+      const headerLength = reply.length;
+      const maxSummaryLength = 1800 - headerLength; // Leave some margin
+      
+      // Truncate if too long
+      if (summary.length > maxSummaryLength) {
+        summary = summary.slice(0, maxSummaryLength) + '...\n\n*[Résumé tronqué - voir la fiche complète sur Git]*';
       }
       reply += `**Résumé:**\n${summary}`;
     }

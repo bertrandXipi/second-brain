@@ -7,6 +7,10 @@ function isRedditUrl(url) {
   return url.includes('reddit.com/r/') || url.includes('redd.it/');
 }
 
+function isTwitterUrl(url) {
+  return url.includes('twitter.com') || url.includes('x.com');
+}
+
 export async function fetchAndExtract(url) {
   console.log(`[fetch] ${url}`);
 
@@ -20,6 +24,11 @@ export async function fetchAndExtract(url) {
     return await fetchReddit(url);
   }
 
+  // Handle Twitter/X URLs specially (use fxtwitter.com to bypass bot protection)
+  if (isTwitterUrl(url)) {
+    return await fetchTwitter(url);
+  }
+
   const html = await fetchWithRetry(url);
   const { title, content, excerpt } = extractContent(html, url);
 
@@ -28,39 +37,39 @@ export async function fetchAndExtract(url) {
 
 async function fetchReddit(url) {
   console.log(`[fetch] Reddit detected, using JSON API`);
-  
+
   // Clean URL and add .json
   let jsonUrl = url.replace(/\?.*$/, ''); // Remove query params
   if (!jsonUrl.endsWith('/')) jsonUrl += '/';
   jsonUrl += '.json';
-  
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.fetch.timeout);
-  
+
   const response = await fetch(jsonUrl, {
     signal: controller.signal,
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; VeilleBot/1.0)',
     },
   });
-  
+
   clearTimeout(timeout);
-  
+
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
-  
+
   const data = await response.json();
-  
+
   // Extract post data
   const post = data[0]?.data?.children?.[0]?.data;
   if (!post) {
     throw new Error('Could not parse Reddit response');
   }
-  
+
   const title = post.title || 'Reddit Post';
   let content = post.selftext || '';
-  
+
   // Add top comments for context
   const comments = data[1]?.data?.children || [];
   const topComments = comments
@@ -68,24 +77,76 @@ async function fetchReddit(url) {
     .slice(0, 10)
     .map(c => c.data.body)
     .join('\n\n---\n\n');
-  
+
   if (topComments) {
     content += '\n\n## Top Comments:\n\n' + topComments;
   }
-  
+
   // If no selftext, mention it's a link post
   if (!post.selftext && post.url) {
     content = `Link post: ${post.url}\n\n${content}`;
   }
-  
+
   const excerpt = content.slice(0, 500);
-  
+
   return { title, content, excerpt, isReddit: true, hasTranscript: true };
+}
+
+async function fetchTwitter(url) {
+  console.log(`[fetch] Twitter detected, using fixupx.com`);
+
+  // Replace domain with fixupx.com
+  const fxUrl = url.replace(/(x|twitter)\.com/, 'fixupx.com');
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.fetch.timeout);
+
+  const response = await fetch(fxUrl, {
+    signal: controller.signal,
+    headers: {
+      // Bots like Discord/Telegram get the metadata, everyone else gets redirected
+      'User-Agent': 'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)',
+      'Accept': 'text/html',
+    },
+  });
+
+  clearTimeout(timeout);
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} from fixupx`);
+  }
+
+  const html = await response.text();
+  const dom = new JSDOM(html);
+  const doc = dom.window.document;
+
+  // Extract content from meta tags
+  const title = doc.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+    doc.querySelector('meta[name="twitter:title"]')?.getAttribute('content') ||
+    'Twitter Post';
+  const content = doc.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
+    doc.querySelector('meta[name="twitter:description"]')?.getAttribute('content') ||
+    '';
+
+  if (!content) {
+    console.log('[fetch] twitter body snippet:', html.slice(0, 500));
+    throw new Error('Could not extract content from twitter wrapper meta tags');
+  }
+
+  const excerpt = content.slice(0, 500);
+
+  return {
+    title,
+    content: `${title}\n\n${content}`,
+    excerpt,
+    isTwitter: true,
+    hasTranscript: true
+  };
 }
 
 async function fetchYouTube(url) {
   const ytContent = await getYouTubeContent(url);
-  
+
   let content = '';
   if (ytContent.hasTranscript) {
     content = ytContent.content;

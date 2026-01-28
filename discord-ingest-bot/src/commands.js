@@ -101,7 +101,12 @@ export const commands = [
   
   new SlashCommandBuilder()
     .setName('insights')
-    .setDescription('Fait émerger les insights philosophiques de toutes les sources'),
+    .setDescription('Fait émerger les insights philosophiques de toutes les sources')
+    .addStringOption(option =>
+      option.setName('focus')
+        .setDescription('Angle d\'analyse spécifique (ex: "IA et éthique", "tendances business")')
+        .setRequired(false)
+    ),
 ];
 
 /**
@@ -235,18 +240,26 @@ async function handleInsightsCommand(interaction) {
       return;
     }
     
+    const focusArea = interaction.options.getString('focus');
+    
     await interaction.editReply('🔮 *Analyse philosophique en cours... Cela peut prendre quelques instants.*');
     
-    // Get the current monthly notebook (same as used for adding sources)
-    const notebookId = await notebookLMClient.getOrCreateMonthlyNotebook();
+    // Import getOrCreateMonthlyNotebook directly
+    const { getOrCreateMonthlyNotebook } = await import('../../batch-processor/src/notebooklm-http.js');
+    const notebookId = await getOrCreateMonthlyNotebook();
     
-    const insightsPrompt = `Qu'est-ce qui émerge de toutes les sources présentes dans ce notebook ?
+    let insightsPrompt = `Qu'est-ce qui émerge de toutes les sources présentes dans ce notebook ?
 
 J'aimerais que tu identifies et articules un fil conducteur permettant de faire émerger de nouveaux insights d'un point de vue "philosophique".
 
-Analyse les tendances profondes, les connexions non-évidentes entre les sujets, et les implications plus larges pour notre compréhension du monde technologique actuel.
+Analyse les tendances profondes, les connexions non-évidentes entre les sujets, et les implications plus larges pour notre compréhension du monde technologique actuel.`;
 
-Structure ta réponse ainsi:
+    // Add focus area if provided
+    if (focusArea) {
+      insightsPrompt += `\n\n**Angle d'analyse spécifique :** ${focusArea}\n\nConcentre ton analyse particulièrement sur cet aspect tout en gardant une vision d'ensemble.`;
+    }
+
+    insightsPrompt += `\n\nStructure ta réponse ainsi:
 1. **Thèmes émergents** - Les grandes tendances qui se dégagent
 2. **Connexions inattendues** - Les liens surprenants entre différentes sources
 3. **Tensions et paradoxes** - Les contradictions intéressantes à explorer
@@ -254,11 +267,18 @@ Structure ta réponse ainsi:
 5. **Questions ouvertes** - Les interrogations que cela soulève pour l'avenir`;
 
     console.log('[commands] /insights querying NotebookLM...');
+    if (focusArea) {
+      console.log(`[commands] focus area: "${focusArea}"`);
+    }
     
     const result = await notebookLMClient.queryNotebook(notebookId, insightsPrompt);
     
     if (result && result.answer) {
-      let response = `🔮 **Insights Philosophiques**\n\n${result.answer}`;
+      let response = `🔮 **Insights Philosophiques**`;
+      if (focusArea) {
+        response += ` - Focus: *${focusArea}*`;
+      }
+      response += `\n\n${result.answer}`;
       
       // Add source count if available
       if (result.sourceCount) {

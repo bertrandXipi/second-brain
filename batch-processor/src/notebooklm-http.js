@@ -191,11 +191,25 @@ export async function getOrCreateMonthlyNotebook() {
 }
 
 /**
+ * Check if URL is Twitter/X.com
+ */
+function isTwitterUrl(url) {
+  return url.includes('twitter.com') || url.includes('x.com');
+}
+
+/**
  * Add URL to NotebookLM
- * Falls back to text content if URL fails (e.g., LinkedIn)
+ * For Twitter/X.com: directly fetch content and add as text (NotebookLM cannot access Twitter)
+ * For other URLs: try URL first, fallback to text if it fails (e.g., LinkedIn)
  */
 export async function addToNotebookLM(url, content, metadata = {}) {
   console.log(`[notebooklm-http] adding source: ${url}`);
+
+  // Twitter/X.com: ALWAYS use text mode (NotebookLM is blocked by Twitter)
+  if (isTwitterUrl(url)) {
+    console.log(`[notebooklm-http] Twitter detected - using direct text mode (NotebookLM cannot access Twitter)`);
+    return await addAsText(url, metadata);
+  }
 
   try {
     // Get or create monthly notebook
@@ -225,42 +239,47 @@ export async function addToNotebookLM(url, content, metadata = {}) {
 
   } catch (urlError) {
     console.log(`[notebooklm-http] URL add failed, trying text fallback: ${urlError.message}`);
+    return await addAsText(url, metadata);
+  }
+}
+
+/**
+ * Add content as text to NotebookLM (fetch content ourselves)
+ */
+async function addAsText(url, metadata = {}) {
+  try {
+    const { fetchAndExtract } = await import('./fetch-content.js');
+    const { title, content: fetchedContent } = await fetchAndExtract(url);
     
-    // Fallback: fetch content and add as text
-    try {
-      const { fetchAndExtract } = await import('./fetch-content.js');
-      const { title, content: fetchedContent } = await fetchAndExtract(url);
-      
-      console.log(`[notebooklm-http] fetched content (${fetchedContent.length} chars), adding as text...`);
-      
-      const notebookId = await getOrCreateMonthlyNotebook();
-      const textResult = await callMCPTool('notebook_add_text', {
+    console.log(`[notebooklm-http] fetched content (${fetchedContent.length} chars), adding as text...`);
+    
+    const notebookId = await getOrCreateMonthlyNotebook();
+    const textResult = await callMCPTool('notebook_add_text', {
+      notebook_id: notebookId,
+      text: fetchedContent,
+      title: title || metadata.title || 'Sans titre',
+    });
+
+    if (textResult.status === 'success') {
+      console.log(`[notebooklm-http] text source added: ${textResult.source.id}`);
+
+      return {
         notebook_id: notebookId,
-        text: fetchedContent,
+        source_id: textResult.source.id,
         title: title || metadata.title || 'Sans titre',
-      });
-
-      if (textResult.status === 'success') {
-        console.log(`[notebooklm-http] text source added: ${textResult.source.id}`);
-
-        return {
-          notebook_id: notebookId,
-          source_id: textResult.source.id,
-          title: title || metadata.title || 'Sans titre',
-          url: url,
-          notebook_url: `https://notebooklm.google.com/notebook/${notebookId}`,
-          source_url: `https://notebooklm.google.com/notebook/${notebookId}`,
-          tags: metadata.tags || [],
-          fallback: true,
-        };
-      }
-      
-      throw new Error(`Failed to add text source: ${textResult.error || 'Unknown error'}`);
-      
-    } catch (fallbackError) {
-      console.error(`[notebooklm-http] fallback also failed: ${fallbackError.message}`);
-      throw new Error(`Failed to add source (URL and text fallback): ${fallbackError.message}`);
+        url: url,
+        notebook_url: `https://notebooklm.google.com/notebook/${notebookId}`,
+        source_url: `https://notebooklm.google.com/notebook/${notebookId}`,
+        tags: metadata.tags || [],
+        fallback: true,
+      };
     }
+    
+    throw new Error(`Failed to add text source: ${textResult.error || 'Unknown error'}`);
+    
+  } catch (fallbackError) {
+    console.error(`[notebooklm-http] text add failed: ${fallbackError.message}`);
+    throw new Error(`Failed to add source as text: ${fallbackError.message}`);
   }
 }
 
@@ -319,4 +338,56 @@ Le rapport doit être complet, structuré, et faire au moins 500 mots. Utilise d
  */
 export async function closeMCPClient() {
   sessionId = null;
+}
+
+/**
+ * Get the configured notebook ID from environment
+ */
+export function getNotebookId() {
+  return process.env.NOTEBOOKLM_NOTEBOOK_ID || null;
+}
+
+/**
+ * Query NotebookLM with a custom prompt
+ */
+export async function queryNotebook(notebookId, query, sourceIds = null) {
+  console.log(`[notebooklm-http] querying notebook ${notebookId}...`);
+  
+  try {
+    const params = {
+      notebook_id: notebookId,
+      query: query,
+      timeout: 180 // 3 minutes for complex queries
+    };
+    
+    if (sourceIds) {
+      params.source_ids = sourceIds;
+    }
+    
+    const result = await callMCPTool('notebook_query', params);
+    
+    if (result.status === 'success') {
+      // Try to get source count
+      let sourceCount = null;
+      try {
+        const notebookInfo = await callMCPTool('notebook_get', { notebook_id: notebookId });
+        if (notebookInfo.status === 'success' && notebookInfo.sources) {
+          sourceCount = notebookInfo.sources.length;
+        }
+      } catch (e) {
+        // Ignore
+      }
+      
+      return {
+        answer: result.answer,
+        conversation_id: result.conversation_id,
+        sourceCount: sourceCount
+      };
+    }
+    
+    throw new Error(result.error || 'Query failed');
+  } catch (err) {
+    console.error('[notebooklm-http] query error:', err.message);
+    throw err;
+  }
 }

@@ -7,6 +7,16 @@ import { readdir, readFile } from 'fs/promises';
 import path from 'path';
 import { config } from './config.js';
 
+// Import NotebookLM client if available
+let notebookLMClient = null;
+try {
+  const { queryNotebook, getNotebookId } = await import('../../batch-processor/src/notebooklm-http.js');
+  notebookLMClient = { queryNotebook, getNotebookId };
+  console.log('[commands] NotebookLM client loaded');
+} catch (err) {
+  console.log('[commands] NotebookLM client not available:', err.message);
+}
+
 const WORKDIR = './workdir/repo';
 const PROCESSED_PATH = 'mobile-share/processed';
 const FICHES_PATH = 'fiches';
@@ -23,6 +33,61 @@ export function getLastProcessed() {
 }
 
 /**
+ * Split long text into chunks for Discord (max 2000 chars per message)
+ */
+function splitIntoChunks(text, maxLength = 1900) {
+  const chunks = [];
+  let remaining = text;
+  
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLength) {
+      chunks.push(remaining);
+      break;
+    }
+    
+    // Find a good break point (paragraph, sentence, or word)
+    let breakPoint = remaining.lastIndexOf('\n\n', maxLength);
+    if (breakPoint === -1 || breakPoint < maxLength / 2) {
+      breakPoint = remaining.lastIndexOf('\n', maxLength);
+    }
+    if (breakPoint === -1 || breakPoint < maxLength / 2) {
+      breakPoint = remaining.lastIndexOf('. ', maxLength);
+      if (breakPoint !== -1) breakPoint += 1; // Include the period
+    }
+    if (breakPoint === -1 || breakPoint < maxLength / 2) {
+      breakPoint = remaining.lastIndexOf(' ', maxLength);
+    }
+    if (breakPoint === -1) {
+      breakPoint = maxLength;
+    }
+    
+    chunks.push(remaining.slice(0, breakPoint).trim());
+    remaining = remaining.slice(breakPoint).trim();
+  }
+  
+  return chunks;
+}
+
+/**
+ * Send a long reply split into multiple messages
+ */
+async function sendLongReply(interaction, text, isFollowUp = false) {
+  const chunks = splitIntoChunks(text);
+  
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const isLast = i === chunks.length - 1;
+    const prefix = chunks.length > 1 && i > 0 ? `*(suite ${i + 1}/${chunks.length})*\n\n` : '';
+    
+    if (i === 0 && !isFollowUp) {
+      await interaction.editReply(prefix + chunk);
+    } else {
+      await interaction.followUp(prefix + chunk);
+    }
+  }
+}
+
+/**
  * Define slash commands
  */
 export const commands = [
@@ -33,6 +98,10 @@ export const commands = [
   new SlashCommandBuilder()
     .setName('stats')
     .setDescription('Statistiques de la veille'),
+  
+  new SlashCommandBuilder()
+    .setName('insights')
+    .setDescription('Fait émerger les insights philosophiques de toutes les sources'),
 ];
 
 /**
@@ -65,7 +134,7 @@ async function handleLastCommand(interaction) {
     // Try to get from memory first
     if (lastProcessedItem) {
       const reply = formatLastItem(lastProcessedItem);
-      await interaction.editReply(reply);
+      await sendLongReply(interaction, reply);
       return;
     }
     
@@ -96,7 +165,7 @@ async function handleLastCommand(interaction) {
     const ficheContent = await findFicheForItem(latest.data);
     
     const reply = formatProcessedItem(latest.data, ficheContent);
-    await interaction.editReply(reply);
+    await sendLongReply(interaction, reply);
     
   } catch (err) {
     console.error('[commands] /last error:', err.message);
@@ -155,6 +224,59 @@ async function handleStatsCommand(interaction) {
 }
 
 /**
+ * Handle /insights command - Query NotebookLM for philosophical insights
+ */
+async function handleInsightsCommand(interaction) {
+  await interaction.deferReply();
+  
+  try {
+    if (!notebookLMClient) {
+      await interaction.editReply('❌ NotebookLM client non disponible.');
+      return;
+    }
+    
+    await interaction.editReply('🔮 *Analyse philosophique en cours... Cela peut prendre quelques instants.*');
+    
+    // Get the current monthly notebook (same as used for adding sources)
+    const notebookId = await notebookLMClient.getOrCreateMonthlyNotebook();
+    
+    const insightsPrompt = `Qu'est-ce qui émerge de toutes les sources présentes dans ce notebook ?
+
+J'aimerais que tu identifies et articules un fil conducteur permettant de faire émerger de nouveaux insights d'un point de vue "philosophique".
+
+Analyse les tendances profondes, les connexions non-évidentes entre les sujets, et les implications plus larges pour notre compréhension du monde technologique actuel.
+
+Structure ta réponse ainsi:
+1. **Thèmes émergents** - Les grandes tendances qui se dégagent
+2. **Connexions inattendues** - Les liens surprenants entre différentes sources
+3. **Tensions et paradoxes** - Les contradictions intéressantes à explorer
+4. **Implications philosophiques** - Ce que cela nous dit sur notre époque
+5. **Questions ouvertes** - Les interrogations que cela soulève pour l'avenir`;
+
+    console.log('[commands] /insights querying NotebookLM...');
+    
+    const result = await notebookLMClient.queryNotebook(notebookId, insightsPrompt);
+    
+    if (result && result.answer) {
+      let response = `🔮 **Insights Philosophiques**\n\n${result.answer}`;
+      
+      // Add source count if available
+      if (result.sourceCount) {
+        response += `\n\n---\n*Analyse basée sur ${result.sourceCount} sources*`;
+      }
+      
+      await sendLongReply(interaction, response, true);
+    } else {
+      await interaction.editReply('❌ Pas de réponse de NotebookLM. Réessayez plus tard.');
+    }
+    
+  } catch (err) {
+    console.error('[commands] /insights error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
+  }
+}
+
+/**
  * Find fiche markdown file for a processed item
  */
 async function findFicheForItem(item) {
@@ -195,20 +317,9 @@ function formatLastItem(item) {
     reply += `**Commit:** \`${item.commitHash}\`\n`;
   }
   
-  // Add summary if available
+  // Add full summary - no truncation, will be split into multiple messages
   if (item.summary) {
-    reply += `\n**Résumé:**\n`;
-    let summary = item.summary;
-    
-    // Calculate remaining space (Discord limit is 2000 chars)
-    const headerLength = reply.length;
-    const maxSummaryLength = 1800 - headerLength; // Leave some margin
-    
-    // Truncate if too long
-    if (summary.length > maxSummaryLength) {
-      summary = summary.slice(0, maxSummaryLength) + '...\n\n*[Résumé tronqué - voir NotebookLM pour le contenu complet]*';
-    }
-    reply += summary;
+    reply += `\n**Résumé:**\n${item.summary}`;
   }
   
   return reply;
@@ -226,17 +337,8 @@ function formatProcessedItem(item, ficheContent) {
     // Extract summary from fiche (between ## Résumé and next ##)
     const summaryMatch = ficheContent.match(/## Résumé[^\n]*\n([\s\S]*?)(?=\n## |$)/);
     if (summaryMatch) {
-      let summary = summaryMatch[1].trim();
-      
-      // Calculate remaining space (Discord limit is 2000 chars)
-      const headerLength = reply.length;
-      const maxSummaryLength = 1800 - headerLength; // Leave some margin
-      
-      // Truncate if too long
-      if (summary.length > maxSummaryLength) {
-        summary = summary.slice(0, maxSummaryLength) + '...\n\n*[Résumé tronqué - voir la fiche complète sur Git]*';
-      }
-      reply += `**Résumé:**\n${summary}`;
+      // No truncation - will be split into multiple messages
+      reply += `**Résumé:**\n${summaryMatch[1].trim()}`;
     }
   }
   
@@ -257,6 +359,9 @@ export async function handleCommand(interaction) {
       break;
     case 'stats':
       await handleStatsCommand(interaction);
+      break;
+    case 'insights':
+      await handleInsightsCommand(interaction);
       break;
     default:
       await interaction.reply('Commande inconnue');

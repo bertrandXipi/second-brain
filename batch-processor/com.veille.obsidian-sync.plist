@@ -8,7 +8,7 @@
     <array>
         <string>/usr/bin/git</string>
         <string>-C</string>
-        <string>/Users/bertrand/Sites/fiches-veille</string>
+        <string>~/Sites/fiches-veille</string>
         <string>pull</string>
         <string>origin</string>
         <string>main</string>

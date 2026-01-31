@@ -18,7 +18,7 @@ Discord → Bot (Google Cloud) → MCP HTTP Server → NotebookLM API
 ### 1. Discord Bot (`veille-bot.service`)
 - **Instance**: veille-bot (us-central1-a)
 - **IP**: 34.42.192.31
-- **Répertoire**: `/home/bertrand/second-brain/discord-ingest-bot`
+- **Répertoire**: `/home/YOUR_USERNAME/second-brain/discord-ingest-bot`
 - **Statut**: ✅ Active (running)
 - **Logs**: `sudo journalctl -u veille-bot -f`
 

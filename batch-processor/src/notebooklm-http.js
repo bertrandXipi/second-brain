@@ -391,3 +391,128 @@ export async function queryNotebook(notebookId, query, sourceIds = null) {
     throw err;
   }
 }
+
+/**
+ * Create audio podcast from notebook sources
+ * @param {string} notebookId - Notebook UUID
+ * @param {object} options - Podcast options
+ * @param {string} options.format - deep_dive | brief | critique | debate
+ * @param {string} options.length - short | default | long
+ * @param {string} options.language - BCP-47 code (default: fr)
+ * @param {string} options.focus - Optional focus prompt
+ */
+export async function createPodcast(notebookId, options = {}) {
+  const { 
+    format = 'deep_dive', 
+    length = 'default', 
+    language = 'fr',
+    focus = ''
+  } = options;
+  
+  console.log(`[notebooklm-http] creating podcast: format=${format}, length=${length}, lang=${language}`);
+  if (focus) console.log(`[notebooklm-http] focus: ${focus}`);
+  
+  try {
+    const result = await callMCPTool('audio_overview_create', {
+      notebook_id: notebookId,
+      format: format,
+      length: length,
+      language: language,
+      focus_prompt: focus,
+      confirm: true
+    });
+    
+    if (result.status === 'success') {
+      return {
+        artifact_id: result.artifact_id,
+        status: result.generation_status || 'in_progress',
+        notebook_url: result.notebook_url
+      };
+    }
+    
+    throw new Error(result.error || result.message || 'Failed to create podcast');
+  } catch (err) {
+    console.error('[notebooklm-http] podcast creation error:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Check podcast generation status
+ * @param {string} notebookId - Notebook UUID
+ * @param {string} artifactId - Artifact UUID to check (optional, returns latest audio if not provided)
+ */
+export async function getPodcastStatus(notebookId, artifactId = null) {
+  console.log(`[notebooklm-http] checking podcast status for notebook ${notebookId}...`);
+  
+  try {
+    const result = await callMCPTool('studio_status', {
+      notebook_id: notebookId
+    });
+    
+    if (result.status === 'success') {
+      // Find the specific artifact or the latest audio
+      let artifact = null;
+      
+      if (artifactId) {
+        artifact = result.artifacts.find(a => a.artifact_id === artifactId);
+      } else {
+        // Find latest audio artifact
+        artifact = result.artifacts
+          .filter(a => a.type === 'audio')
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+      }
+      
+      if (artifact) {
+        return {
+          artifact_id: artifact.artifact_id,
+          title: artifact.title,
+          status: artifact.status,
+          audio_url: artifact.audio_url,
+          duration_seconds: artifact.duration_seconds,
+          created_at: artifact.created_at,
+          notebook_url: result.notebook_url
+        };
+      }
+      
+      return { status: 'not_found' };
+    }
+    
+    throw new Error(result.error || 'Failed to get status');
+  } catch (err) {
+    console.error('[notebooklm-http] status check error:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Download audio file from URL (follows redirects)
+ * @param {string} audioUrl - URL of the audio file
+ * @returns {Promise<{buffer: Buffer, contentType: string}>} - Audio file buffer and content type
+ */
+export async function downloadAudio(audioUrl) {
+  console.log(`[notebooklm-http] downloading audio from: ${audioUrl.substring(0, 80)}...`);
+  
+  try {
+    // Follow redirects
+    const response = await fetch(audioUrl, {
+      redirect: 'follow'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.status}`);
+    }
+    
+    const contentType = response.headers.get('content-type') || 'audio/mp4';
+    console.log(`[notebooklm-http] content-type: ${contentType}`);
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    console.log(`[notebooklm-http] downloaded ${buffer.length} bytes`);
+    return { buffer, contentType };
+  } catch (err) {
+    console.error('[notebooklm-http] download error:', err.message);
+    throw err;
+  }
+}

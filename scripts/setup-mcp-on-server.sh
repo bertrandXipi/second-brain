@@ -46,10 +46,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=bertrand
-WorkingDirectory=/home/bertrand
-Environment="PATH=/home/bertrand/.local/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=/home/bertrand/.local/bin/notebooklm-mcp --transport streamable-http --host 127.0.0.1 --port 8080
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME
+Environment="PATH=/home/YOUR_USERNAME/.local/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/YOUR_USERNAME/.local/bin/notebooklm-mcp --transport streamable-http --host 127.0.0.1 --port 8080
 Restart=always
 RestartSec=10
 StandardOutput=journal

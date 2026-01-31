@@ -7,7 +7,7 @@ import { config } from './config.js';
 import { initGit, pullLatest, commitAndPush } from './git-sync.js';
 import { notifyDiscord } from './discord-notify.js';
 
-const OBSIDIAN_VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '/Users/bertrand/Sites/fiches-veille';
+const OBSIDIAN_VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '~/Sites/fiches-veille';
 
 async function getWeekFiches() {
   const fichesDir = path.join(config.workdir, 'fiches');

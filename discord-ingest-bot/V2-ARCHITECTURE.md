@@ -196,7 +196,7 @@ notebooklm-mcp-auth  # Déjà fait
 {
   "mcpServers": {
     "notebooklm": {
-      "command": "/Users/bertrand/.local/bin/notebooklm-mcp",
+      "command": "~/.local/bin/notebooklm-mcp",
       "args": [],
       "disabled": false
     }

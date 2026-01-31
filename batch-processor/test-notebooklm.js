@@ -8,7 +8,7 @@ import { spawn } from 'child_process';
 
 async function callMCP(tool, args = {}) {
   return new Promise((resolve, reject) => {
-    const mcp = spawn('/Users/bertrand/.local/bin/notebooklm-mcp', [], {
+    const mcp = spawn('~/.local/bin/notebooklm-mcp', [], {
       stdio: ['pipe', 'pipe', 'pipe']
     });
 

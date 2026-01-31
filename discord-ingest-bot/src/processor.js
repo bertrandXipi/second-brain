@@ -43,6 +43,11 @@ try {
 export async function processItem(item, git, discordMessage = null) {
   console.log(`\n[processor] processing: ${item.url}`);
 
+  // Twitter/X.com links are now supported via text fallback (fxtwitter API)
+  if (item.url.includes('twitter.com') || item.url.includes('x.com')) {
+    console.log('[processor] 🐦 Twitter/X.com link detected - will use text mode via fxtwitter API');
+  }
+
   const pendingFile = path.join(WORKDIR, PENDING_PATH, `${item.id}.json`);
   const processedFile = path.join(WORKDIR, PROCESSED_PATH, `${item.id}.json`);
   const failedFile = path.join(WORKDIR, FAILED_PATH, `${item.id}.json`);

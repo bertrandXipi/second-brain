@@ -10,7 +10,7 @@ import { generateMarkdownV2 } from './markdown-generator-v2.js';
 import { initGit, pullLatest, commitAndPush } from './git-sync.js';
 import { notifyDiscord, notifyError, notifyBatchStart, notifyProgress } from './discord-notify.js';
 
-const OBSIDIAN_VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '/Users/bertrand/Sites/fiches-veille';
+const OBSIDIAN_VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '~/Sites/fiches-veille';
 
 async function main() {
   console.log('[batch-v2] starting with NotebookLM integration...');
@@ -72,6 +72,11 @@ async function main() {
       const item = JSON.parse(content);
 
       console.log(`\n[batch-v2] processing: ${item.url}`);
+
+      // Check if this is a Twitter/X.com link - warn but try to process
+      if (item.url.includes('twitter.com') || item.url.includes('x.com')) {
+        console.log('[batch-v2] ⚠️ Twitter/X.com link detected - attempting with fallback methods');
+      }
 
       // Fetch and extract
       const fetchResult = await fetchAndExtract(item.url);

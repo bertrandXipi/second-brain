@@ -7,10 +7,10 @@
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/bin/node</string>
-        <string>/Users/bertrand/Sites/second-brain/batch-processor/src/digest.js</string>
+        <string>~/Sites/second-brain/batch-processor/src/digest.js</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Users/bertrand/Sites/second-brain/batch-processor</string>
+    <string>~/Sites/second-brain/batch-processor</string>
     <key>StartCalendarInterval</key>
     <dict>
         <key>Weekday</key>
@@ -21,9 +21,9 @@
         <integer>0</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/Users/bertrand/Sites/second-brain/batch-processor/digest.log</string>
+    <string>~/Sites/second-brain/batch-processor/digest.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/bertrand/Sites/second-brain/batch-processor/digest-error.log</string>
+    <string>~/Sites/second-brain/batch-processor/digest-error.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>

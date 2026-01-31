@@ -3,7 +3,7 @@ set -e
 
 INSTANCE="veille-bot"
 ZONE="us-central1-a"
-BOT_DIR="/home/bertrand/second-brain/discord-ingest-bot"
+BOT_DIR="/home/YOUR_USERNAME/second-brain/discord-ingest-bot"
 
 echo "🚀 Deploying Discord bot to Google Cloud..."
 

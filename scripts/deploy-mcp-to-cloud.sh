@@ -45,12 +45,12 @@ After=network.target
 
 [Service]
 Type=simple
-User=bertrand
-WorkingDirectory=/home/bertrand
-ExecStart=/home/bertrand/.local/bin/notebooklm-mcp --transport http --host 127.0.0.1 --port 8000
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME
+ExecStart=/home/YOUR_USERNAME/.local/bin/notebooklm-mcp --transport http --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=10
-Environment=\"PATH=/home/bertrand/.local/bin:/usr/bin:/bin\"
+Environment=\"PATH=/home/YOUR_USERNAME/.local/bin:/usr/bin:/bin\"
 
 [Install]
 WantedBy=multi-user.target

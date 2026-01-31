@@ -8,7 +8,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/bertrand/second-brain/batch-processor/run-notebooklm-batch-in-kiro.sh</string>
+        <string>~/second-brain/batch-processor/run-notebooklm-batch-in-kiro.sh</string>
     </array>
     
     <key>StartCalendarInterval</key>
@@ -44,12 +44,12 @@
     </array>
     
     <key>StandardOutPath</key>
-    <string>/Users/bertrand/second-brain/batch-processor/batch-notebooklm.log</string>
+    <string>~/second-brain/batch-processor/batch-notebooklm.log</string>
     
     <key>StandardErrorPath</key>
-    <string>/Users/bertrand/second-brain/batch-processor/batch-notebooklm-error.log</string>
+    <string>~/second-brain/batch-processor/batch-notebooklm-error.log</string>
     
     <key>WorkingDirectory</key>
-    <string>/Users/bertrand/second-brain</string>
+    <string>~/second-brain</string>
 </dict>
 </plist>

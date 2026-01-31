@@ -10,7 +10,7 @@ import { generateMarkdown } from './markdown-generator.js';
 import { initGit, pullLatest, commitAndPush } from './git-sync.js';
 import { notifyDiscord, notifyError, notifyBatchStart, notifyProgress } from './discord-notify.js';
 
-const OBSIDIAN_VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '/Users/bertrand/Sites/fiches-veille';
+const OBSIDIAN_VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '~/Sites/fiches-veille';
 
 async function main() {
   console.log('[batch] starting...');

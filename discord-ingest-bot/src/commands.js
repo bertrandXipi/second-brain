@@ -10,8 +10,8 @@ import { config } from './config.js';
 // Import NotebookLM client if available
 let notebookLMClient = null;
 try {
-  const { queryNotebook, getNotebookId, getOrCreateMonthlyNotebook, createPodcast, getPodcastStatus, downloadAudio } = await import('../../batch-processor/src/notebooklm-http.js');
-  notebookLMClient = { queryNotebook, getNotebookId, getOrCreateMonthlyNotebook, createPodcast, getPodcastStatus, downloadAudio };
+  const { queryNotebook, getNotebookId, getOrCreateMonthlyNotebook, createPodcast, getPodcastStatus, downloadAudio, listNotebooks } = await import('../../batch-processor/src/notebooklm-http.js');
+  notebookLMClient = { queryNotebook, getNotebookId, getOrCreateMonthlyNotebook, createPodcast, getPodcastStatus, downloadAudio, listNotebooks };
   console.log('[commands] NotebookLM client loaded');
 } catch (err) {
   console.log('[commands] NotebookLM client not available:', err.message);
@@ -98,6 +98,10 @@ export const commands = [
   new SlashCommandBuilder()
     .setName('stats')
     .setDescription('Statistiques de la veille'),
+  
+  new SlashCommandBuilder()
+    .setName('notebooks')
+    .setDescription('Liste tous les notebooks NotebookLM'),
   
   new SlashCommandBuilder()
     .setName('insights')
@@ -255,6 +259,68 @@ async function handleStatsCommand(interaction) {
   } catch (err) {
     console.error('[commands] /stats error:', err.message);
     await interaction.editReply(`Erreur: ${err.message}`);
+  }
+}
+
+/**
+ * Handle /notebooks command - List all NotebookLM notebooks
+ */
+async function handleNotebooksCommand(interaction) {
+  await interaction.deferReply();
+  
+  try {
+    if (!notebookLMClient) {
+      await interaction.editReply('❌ NotebookLM client non disponible.');
+      return;
+    }
+    
+    console.log('[commands] /notebooks listing all notebooks...');
+    
+    const notebooks = await notebookLMClient.listNotebooks(200);
+    
+    if (!notebooks || notebooks.length === 0) {
+      await interaction.editReply('📚 Aucun notebook trouvé.');
+      return;
+    }
+    
+    // Sort by most recent first (assuming they have a created_at or similar field)
+    notebooks.sort((a, b) => {
+      // If there's a date field, use it, otherwise keep original order
+      if (a.created_at && b.created_at) {
+        return new Date(b.created_at) - new Date(a.created_at);
+      }
+      return 0;
+    });
+    
+    let reply = `📚 **Notebooks NotebookLM** (${notebooks.length} total)\n\n`;
+    
+    for (const notebook of notebooks) {
+      const title = notebook.title || 'Sans titre';
+      const id = notebook.id;
+      const sourceCount = notebook.source_count || 0;
+      
+      // Build NotebookLM URL
+      const notebookUrl = `https://notebooklm.google.com/notebook/${id}`;
+      
+      reply += `📖 **[${title}](${notebookUrl})**\n`;
+      reply += `   • ID: \`${id}\`\n`;
+      reply += `   • Sources: ${sourceCount}\n`;
+      
+      if (notebook.created_at) {
+        const date = new Date(notebook.created_at);
+        reply += `   • Créé: ${date.toLocaleDateString('fr-FR')}\n`;
+      }
+      
+      reply += `\n`;
+    }
+    
+    reply += `\n💡 *Clique sur un titre pour ouvrir le notebook dans NotebookLM*`;
+    
+    await sendLongReply(interaction, reply);
+    
+  } catch (err) {
+    console.error('[commands] /notebooks error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
   }
 }
 
@@ -547,6 +613,9 @@ export async function handleCommand(interaction) {
       break;
     case 'stats':
       await handleStatsCommand(interaction);
+      break;
+    case 'notebooks':
+      await handleNotebooksCommand(interaction);
       break;
     case 'insights':
       await handleInsightsCommand(interaction);

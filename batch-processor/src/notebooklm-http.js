@@ -152,6 +152,22 @@ async function callMCPTool(toolName, args) {
 }
 
 /**
+ * List all notebooks
+ */
+export async function listNotebooks(maxResults = 100) {
+  console.log('[notebooklm-http] listing notebooks...');
+  
+  const listResult = await callMCPTool('notebook_list', { max_results: maxResults });
+  
+  if (listResult.status === 'success') {
+    console.log(`[notebooklm-http] found ${listResult.notebooks.length} notebooks`);
+    return listResult.notebooks;
+  }
+  
+  throw new Error('Failed to list notebooks');
+}
+
+/**
  * Get or create monthly notebook
  */
 export async function getOrCreateMonthlyNotebook() {

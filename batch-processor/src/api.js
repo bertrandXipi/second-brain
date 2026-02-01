@@ -21,6 +21,32 @@ app.use(express.json());
 
 const PORT = process.env.API_PORT || 3100;
 const REPO_PATH = process.env.REPO_PATH || './workdir/repo';
+const API_TOKEN = process.env.API_TOKEN;
+
+/**
+ * Authentication middleware
+ */
+function authMiddleware(req, res, next) {
+  // Health check doesn't require auth
+  if (req.path === '/health') {
+    return next();
+  }
+  
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, error: 'Missing or invalid Authorization header' });
+  }
+  
+  const token = authHeader.slice(7);
+  if (!API_TOKEN || token !== API_TOKEN) {
+    return res.status(403).json({ success: false, error: 'Invalid API token' });
+  }
+  
+  next();
+}
+
+// Apply auth middleware to all routes
+app.use(authMiddleware);
 
 /**
  * Health check

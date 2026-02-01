@@ -117,6 +117,18 @@ export const commands = [
     .setDescription('Choisir le notebook NotebookLM à utiliser pour les sources'),
   
   new SlashCommandBuilder()
+    .setName('reset_notebook')
+    .setDescription('Revenir au notebook mensuel par défaut'),
+  
+  new SlashCommandBuilder()
+    .setName('status')
+    .setDescription('Affiche le notebook actuellement sélectionné'),
+  
+  new SlashCommandBuilder()
+    .setName('info')
+    .setDescription('Liste toutes les commandes disponibles'),
+  
+  new SlashCommandBuilder()
     .setName('podcast')
     .setDescription('Génère un podcast audio à partir des sources de veille')
     .addStringOption(option =>
@@ -633,6 +645,15 @@ export async function handleCommand(interaction) {
       case 'choice_notebook':
         await handleChoiceNotebookCommand(interaction);
         break;
+      case 'reset_notebook':
+        await handleResetNotebookCommand(interaction);
+        break;
+      case 'status':
+        await handleStatusCommand(interaction);
+        break;
+      case 'info':
+        await handleInfoCommand(interaction);
+        break;
       default:
         await interaction.reply(`❌ Commande inconnue: /${commandName}`);
     }
@@ -754,6 +775,122 @@ export async function handleNotebookSelection(interaction) {
     
   } catch (err) {
     console.error('[commands] notebook selection error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
+  }
+}
+
+/**
+ * Handle /reset_notebook command - Reset to default monthly notebook
+ */
+async function handleResetNotebookCommand(interaction) {
+  await interaction.deferReply();
+  
+  try {
+    const { resetNotebookSelection, getSelectedNotebook } = await import('./notebookSelector.js');
+    
+    // Check if there's a selection to reset
+    const current = await getSelectedNotebook();
+    
+    if (!current) {
+      await interaction.editReply('ℹ️ Aucun notebook personnalisé sélectionné. Le comportement par défaut est déjà actif.');
+      return;
+    }
+    
+    // Reset selection
+    await resetNotebookSelection();
+    
+    await interaction.editReply({
+      content: `✅ **Notebook réinitialisé**\n\n📅 Les sources iront maintenant dans le notebook mensuel par défaut.\n\n*Ancien notebook : ${current.selectedNotebookTitle}*`
+    });
+    
+    console.log(`[commands] notebook reset by ${interaction.user.username}`);
+    
+  } catch (err) {
+    console.error('[commands] /reset_notebook error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
+  }
+}
+
+/**
+ * Handle /status command - Show current notebook selection
+ */
+async function handleStatusCommand(interaction) {
+  await interaction.deferReply();
+  
+  try {
+    const { getSelectedNotebook } = await import('./notebookSelector.js');
+    const current = await getSelectedNotebook();
+    
+    if (!current) {
+      // Default behavior
+      const now = new Date();
+      const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
+                          'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+      const monthName = monthNames[now.getMonth()];
+      const year = now.getFullYear();
+      
+      await interaction.editReply({
+        content: `📊 **Statut du Bot**\n\n📅 **Notebook actif :** Veille Tech - ${monthName} ${year} (par défaut)\n\n💡 *Utilise \`/choice_notebook\` pour sélectionner un notebook spécifique.*`
+      });
+      return;
+    }
+    
+    // Custom notebook selected
+    const lastUpdated = new Date(current.lastUpdated).toLocaleString('fr-FR');
+    
+    let reply = `📊 **Statut du Bot**\n\n`;
+    reply += `📖 **Notebook actif :** ${current.selectedNotebookTitle}\n`;
+    reply += `🔗 **Lien :** [Ouvrir dans NotebookLM](${current.selectedNotebookUrl})\n`;
+    reply += `📅 **Sélectionné le :** ${lastUpdated}\n`;
+    reply += `👤 **Par :** <@${current.updatedBy}>\n\n`;
+    reply += `💡 *Utilise \`/reset_notebook\` pour revenir au notebook mensuel par défaut.*`;
+    
+    await interaction.editReply(reply);
+    
+  } catch (err) {
+    console.error('[commands] /status error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
+  }
+}
+
+/**
+ * Handle /info command - List all available commands
+ */
+async function handleInfoCommand(interaction) {
+  await interaction.deferReply();
+  
+  try {
+    let reply = `ℹ️ **Commandes Disponibles**\n\n`;
+    
+    reply += `**📚 Gestion des Sources**\n`;
+    reply += `• \`/last\` - Affiche le résumé de la dernière URL traitée\n`;
+    reply += `• \`/stats\` - Statistiques de la veille (nombre de fiches, etc.)\n\n`;
+    
+    reply += `**📖 NotebookLM**\n`;
+    reply += `• \`/notebooks\` - Liste tous les notebooks NotebookLM\n`;
+    reply += `• \`/choice_notebook\` - Choisir un notebook spécifique pour les sources\n`;
+    reply += `• \`/reset_notebook\` - Revenir au notebook mensuel par défaut\n`;
+    reply += `• \`/status\` - Affiche le notebook actuellement sélectionné\n\n`;
+    
+    reply += `**🔮 Analyse & Insights**\n`;
+    reply += `• \`/insights [focus]\` - Génère des insights philosophiques à partir des sources\n`;
+    reply += `  *Paramètre optionnel :* \`focus\` - Angle d'analyse spécifique\n\n`;
+    
+    reply += `**🎙️ Génération de Contenu**\n`;
+    reply += `• \`/podcast [format] [durée] [focus]\` - Génère un podcast audio\n`;
+    reply += `  *Formats :* Deep Dive, Brief, Critique, Débat\n`;
+    reply += `  *Durées :* Court (~5 min), Normal (~10 min), Long (~15 min)\n\n`;
+    
+    reply += `**ℹ️ Aide**\n`;
+    reply += `• \`/info\` - Affiche cette liste de commandes\n\n`;
+    
+    reply += `---\n`;
+    reply += `💡 **Astuce :** Poste simplement un lien dans le canal pour l'ajouter automatiquement à la veille !`;
+    
+    await interaction.editReply(reply);
+    
+  } catch (err) {
+    console.error('[commands] /info error:', err.message);
     await interaction.editReply(`❌ Erreur: ${err.message}`);
   }
 }

@@ -179,7 +179,7 @@ export async function getOrCreateMonthlyNotebook() {
   
   // 1. Check if user has selected a notebook
   try {
-    const { getNotebookIdToUse } = await import('../../../discord-ingest-bot/src/notebookSelector.js');
+    const { getNotebookIdToUse } = await import('../../discord-ingest-bot/src/notebookSelector.js');
     const selectedId = await getNotebookIdToUse();
     
     if (selectedId) {
@@ -187,7 +187,7 @@ export async function getOrCreateMonthlyNotebook() {
       return selectedId;
     }
   } catch (err) {
-    console.log('[notebooklm-http] notebookSelector not available, using default behavior');
+    console.log('[notebooklm-http] notebookSelector not available:', err.message);
   }
   
   const now = new Date();

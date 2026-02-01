@@ -604,6 +604,49 @@ function formatProcessedItem(item, ficheContent) {
 }
 
 /**
+ * Main command dispatcher - routes to appropriate handler
+ */
+export async function handleCommand(interaction) {
+  if (!interaction.isChatInputCommand()) return;
+  
+  const commandName = interaction.commandName;
+  
+  console.log(`[commands] handling command: /${commandName}`);
+  
+  try {
+    switch (commandName) {
+      case 'last':
+        await handleLastCommand(interaction);
+        break;
+      case 'stats':
+        await handleStatsCommand(interaction);
+        break;
+      case 'notebooks':
+        await handleNotebooksCommand(interaction);
+        break;
+      case 'insights':
+        await handleInsightsCommand(interaction);
+        break;
+      case 'podcast':
+        await handlePodcastCommand(interaction);
+        break;
+      case 'choice_notebook':
+        await handleChoiceNotebookCommand(interaction);
+        break;
+      default:
+        await interaction.reply(`❌ Commande inconnue: /${commandName}`);
+    }
+  } catch (err) {
+    console.error(`[commands] error handling /${commandName}:`, err.message);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply(`❌ Erreur: ${err.message}`);
+    } else if (interaction.deferred) {
+      await interaction.editReply(`❌ Erreur: ${err.message}`);
+    }
+  }
+}
+
+/**
  * Handle /choice_notebook command - Select which notebook to use
  */
 async function handleChoiceNotebookCommand(interaction) {
@@ -636,14 +679,24 @@ async function handleChoiceNotebookCommand(interaction) {
     // Create select menu with notebooks (max 25 options)
     const { StringSelectMenuBuilder, ActionRowBuilder } = await import('discord.js');
     
+    // Filter notebooks with valid titles and create options
+    const validNotebooks = notebooks
+      .filter(nb => nb.id && nb.title && nb.title.trim())
+      .slice(0, 25);
+    
+    if (validNotebooks.length === 0) {
+      await interaction.editReply('📚 Aucun notebook avec un titre valide trouvé.');
+      return;
+    }
+    
     const selectMenu = new StringSelectMenuBuilder()
       .setCustomId('notebook_select')
       .setPlaceholder('Choisir un notebook...')
       .addOptions(
-        notebooks.slice(0, 25).map(nb => ({
-          label: nb.title.substring(0, 100),
+        validNotebooks.map(nb => ({
+          label: (nb.title || 'Sans titre').substring(0, 100),
           value: nb.id,
-          description: `${nb.source_count || 0} sources`,
+          description: `${nb.source_count || 0} sources`.substring(0, 100),
           emoji: '📖'
         }))
       );

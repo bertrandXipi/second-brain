@@ -48,6 +48,36 @@ Génère une analyse philosophique de toutes les sources du mois en cours.
 /insights focus:tendances business
 ```
 
+## 🔧 Configuration et Maintenance
+
+### Changer de compte NotebookLM
+
+Pour connecter le système à un nouveau compte NotebookLM :
+
+```bash
+# Méthode automatique (recommandée)
+./scripts/switch-notebooklm-account.sh
+
+# Ou manuellement
+gcloud compute ssh veille-bot --zone=us-central1-a
+notebooklm-mcp-auth  # Connectez-vous avec le nouveau compte
+sudo systemctl restart notebooklm-mcp
+sudo systemctl restart veille-bot
+```
+
+📖 **Guide complet** : [docs/CHANGE-NOTEBOOKLM-ACCOUNT.md](docs/CHANGE-NOTEBOOKLM-ACCOUNT.md)
+
+### Tester la connexion NotebookLM
+
+```bash
+# En local
+node scripts/test-notebooklm-connection.js
+
+# Sur le serveur
+gcloud compute ssh veille-bot --zone=us-central1-a \
+  --command="cd second-brain && node scripts/test-notebooklm-connection.js"
+```
+
 #### `/podcast [format] [duree] [focus]`
 Génère un podcast audio à partir des sources de veille via NotebookLM.
 

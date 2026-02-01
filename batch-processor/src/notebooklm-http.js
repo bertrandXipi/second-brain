@@ -169,15 +169,25 @@ export async function listNotebooks(maxResults = 100) {
 
 /**
  * Get or create monthly notebook
+ * Special case: February 2026 uses existing notebook "L'Aube de l'Intelligence Artificielle et du Vibe Coding"
  */
 export async function getOrCreateMonthlyNotebook() {
   console.log('[notebooklm-http] getting or creating monthly notebook...');
   
   const now = new Date();
+  const month = now.getMonth(); // 0-indexed (0 = January, 1 = February)
+  const year = now.getFullYear();
+  
+  // Special case: February 2026 - use existing notebook
+  if (year === 2026 && month === 1) {
+    const feb2026NotebookId = '5ac37432-e593-4bb7-b761-a4301800efc4';
+    console.log(`[notebooklm-http] February 2026 - using existing notebook: ${feb2026NotebookId}`);
+    return feb2026NotebookId;
+  }
+  
   const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 
                       'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
-  const monthName = monthNames[now.getMonth()];
-  const year = now.getFullYear();
+  const monthName = monthNames[month];
   const notebookTitle = `Veille Tech - ${monthName} ${year}`;
   
   console.log(`[notebooklm-http] looking for notebook: "${notebookTitle}"`);

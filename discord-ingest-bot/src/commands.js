@@ -129,6 +129,15 @@ export const commands = [
     .setDescription('Liste toutes les commandes disponibles'),
   
   new SlashCommandBuilder()
+    .setName('ask')
+    .setDescription('Pose une question sur toutes les sources du notebook actif')
+    .addStringOption(option =>
+      option.setName('question')
+        .setDescription('Ta question')
+        .setRequired(true)
+    ),
+  
+  new SlashCommandBuilder()
     .setName('podcast')
     .setDescription('Génère un podcast audio à partir des sources de veille')
     .addStringOption(option =>
@@ -654,6 +663,9 @@ export async function handleCommand(interaction) {
       case 'info':
         await handleInfoCommand(interaction);
         break;
+      case 'ask':
+        await handleAskCommand(interaction);
+        break;
       default:
         await interaction.reply(`❌ Commande inconnue: /${commandName}`);
     }
@@ -874,7 +886,8 @@ async function handleInfoCommand(interaction) {
     
     reply += `**🔮 Analyse & Insights**\n`;
     reply += `• \`/insights [focus]\` - Génère des insights philosophiques à partir des sources\n`;
-    reply += `  *Paramètre optionnel :* \`focus\` - Angle d'analyse spécifique\n\n`;
+    reply += `  *Paramètre optionnel :* \`focus\` - Angle d'analyse spécifique\n`;
+    reply += `• \`/ask <question>\` - Pose une question sur toutes les sources du notebook actif\n\n`;
     
     reply += `**🎙️ Génération de Contenu**\n`;
     reply += `• \`/podcast [format] [durée] [focus]\` - Génère un podcast audio\n`;
@@ -891,6 +904,51 @@ async function handleInfoCommand(interaction) {
     
   } catch (err) {
     console.error('[commands] /info error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
+  }
+}
+
+/**
+ * Handle /ask command - Query all sources in active notebook
+ */
+async function handleAskCommand(interaction) {
+  await interaction.deferReply();
+  
+  try {
+    if (!notebookLMClient) {
+      await interaction.editReply('❌ NotebookLM client non disponible.');
+      return;
+    }
+    
+    const question = interaction.options.getString('question');
+    
+    await interaction.editReply(`🔍 *Recherche dans les sources... Cela peut prendre quelques instants.*\n\n**Question :** ${question}`);
+    
+    console.log(`[commands] /ask query: "${question}"`);
+    
+    // Get the active notebook ID (respects user selection)
+    const { getOrCreateMonthlyNotebook } = await import('../../batch-processor/src/notebooklm-http.js');
+    const notebookId = await getOrCreateMonthlyNotebook();
+    
+    // Query all sources in the notebook
+    const result = await notebookLMClient.queryNotebook(notebookId, question);
+    
+    if (result && result.answer) {
+      let response = `💬 **Réponse**\n\n${result.answer}`;
+      
+      // Add footer with metadata
+      response += `\n\n---\n`;
+      if (result.sourceCount) {
+        response += `*Réponse basée sur ${result.sourceCount} sources*`;
+      }
+      
+      await sendLongReply(interaction, response, true);
+    } else {
+      await interaction.editReply('❌ Pas de réponse de NotebookLM. Réessayez plus tard.');
+    }
+    
+  } catch (err) {
+    console.error('[commands] /ask error:', err.message);
     await interaction.editReply(`❌ Erreur: ${err.message}`);
   }
 }

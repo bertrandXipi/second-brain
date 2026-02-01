@@ -9,6 +9,7 @@ node_modules/
 discord-ingest-bot/workdir/
 discord-ingest-bot/spool/
 discord-ingest-bot/fiches-veille/
+discord-ingest-bot/notebook-config.json
 
 # Batch processor working directories
 batch-processor/workdir/

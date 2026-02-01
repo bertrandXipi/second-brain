@@ -169,16 +169,32 @@ export async function listNotebooks(maxResults = 100) {
 
 /**
  * Get or create monthly notebook
- * Special case: February 2026 uses existing notebook "L'Aube de l'Intelligence Artificielle et du Vibe Coding"
+ * Priority:
+ * 1. User-selected notebook (via /choice_notebook)
+ * 2. Special case: February 2026 uses existing notebook
+ * 3. Default: Create/use monthly notebook
  */
 export async function getOrCreateMonthlyNotebook() {
   console.log('[notebooklm-http] getting or creating monthly notebook...');
+  
+  // 1. Check if user has selected a notebook
+  try {
+    const { getNotebookIdToUse } = await import('../../../discord-ingest-bot/src/notebookSelector.js');
+    const selectedId = await getNotebookIdToUse();
+    
+    if (selectedId) {
+      console.log(`[notebooklm-http] using user-selected notebook: ${selectedId}`);
+      return selectedId;
+    }
+  } catch (err) {
+    console.log('[notebooklm-http] notebookSelector not available, using default behavior');
+  }
   
   const now = new Date();
   const month = now.getMonth(); // 0-indexed (0 = January, 1 = February)
   const year = now.getFullYear();
   
-  // Special case: February 2026 - use existing notebook
+  // 2. Special case: February 2026 - use existing notebook
   if (year === 2026 && month === 1) {
     const feb2026NotebookId = '5ac37432-e593-4bb7-b761-a4301800efc4';
     console.log(`[notebooklm-http] February 2026 - using existing notebook: ${feb2026NotebookId}`);

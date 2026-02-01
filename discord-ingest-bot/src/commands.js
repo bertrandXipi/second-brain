@@ -113,6 +113,10 @@ export const commands = [
     ),
   
   new SlashCommandBuilder()
+    .setName('choice_notebook')
+    .setDescription('Choisir le notebook NotebookLM à utiliser pour les sources'),
+  
+  new SlashCommandBuilder()
     .setName('podcast')
     .setDescription('Génère un podcast audio à partir des sources de veille')
     .addStringOption(option =>
@@ -600,30 +604,105 @@ function formatProcessedItem(item, ficheContent) {
 }
 
 /**
- * Handle all slash command interactions
+ * Handle /choice_notebook command - Select which notebook to use
  */
-export async function handleCommand(interaction) {
-  if (!interaction.isChatInputCommand()) return;
+async function handleChoiceNotebookCommand(interaction) {
+  await interaction.deferReply();
   
-  const { commandName } = interaction;
-  
-  switch (commandName) {
-    case 'last':
-      await handleLastCommand(interaction);
-      break;
-    case 'stats':
-      await handleStatsCommand(interaction);
-      break;
-    case 'notebooks':
-      await handleNotebooksCommand(interaction);
-      break;
-    case 'insights':
-      await handleInsightsCommand(interaction);
-      break;
-    case 'podcast':
-      await handlePodcastCommand(interaction);
-      break;
-    default:
-      await interaction.reply('Commande inconnue');
+  try {
+    if (!notebookLMClient) {
+      await interaction.editReply('❌ NotebookLM client non disponible.');
+      return;
+    }
+    
+    console.log('[commands] /choice_notebook listing notebooks...');
+    
+    // Get all notebooks
+    const notebooks = await notebookLMClient.listNotebooks(200);
+    
+    if (!notebooks || notebooks.length === 0) {
+      await interaction.editReply('📚 Aucun notebook trouvé.');
+      return;
+    }
+    
+    // Sort by most recent first
+    notebooks.sort((a, b) => {
+      if (a.created_at && b.created_at) {
+        return new Date(b.created_at) - new Date(a.created_at);
+      }
+      return 0;
+    });
+    
+    // Create select menu with notebooks (max 25 options)
+    const { StringSelectMenuBuilder, ActionRowBuilder } = await import('discord.js');
+    
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId('notebook_select')
+      .setPlaceholder('Choisir un notebook...')
+      .addOptions(
+        notebooks.slice(0, 25).map(nb => ({
+          label: nb.title.substring(0, 100),
+          value: nb.id,
+          description: `${nb.source_count || 0} sources`,
+          emoji: '📖'
+        }))
+      );
+    
+    const row = new ActionRowBuilder().addComponents(selectMenu);
+    
+    // Show menu
+    await interaction.editReply({
+      content: '📚 **Sélectionne un notebook à utiliser :**\n\n*Toutes les futures sources iront dans ce notebook.*',
+      components: [row]
+    });
+    
+  } catch (err) {
+    console.error('[commands] /choice_notebook error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
   }
 }
+
+/**
+ * Handle notebook selection from select menu
+ */
+export async function handleNotebookSelection(interaction) {
+  if (!interaction.isStringSelectMenu()) return;
+  if (interaction.customId !== 'notebook_select') return;
+  
+  await interaction.deferReply({ ephemeral: true });
+  
+  try {
+    const notebookId = interaction.values[0];
+    
+    // Get notebook details
+    const notebooks = await notebookLMClient.listNotebooks(200);
+    const selected = notebooks.find(nb => nb.id === notebookId);
+    
+    if (!selected) {
+      await interaction.editReply('❌ Notebook non trouvé');
+      return;
+    }
+    
+    // Save selection
+    const { setSelectedNotebook } = await import('./notebookSelector.js');
+    await setSelectedNotebook(
+      notebookId,
+      selected.title,
+      selected.url,
+      interaction.user.id
+    );
+    
+    // Confirm to user
+    await interaction.editReply({
+      content: `✅ **Notebook sélectionné :**\n\n📖 ${selected.title}\n📊 ${selected.source_count || 0} sources\n\n*Toutes les futures sources iront dans ce notebook.*`
+    });
+    
+    console.log(`[commands] notebook selected by ${interaction.user.username}: ${selected.title}`);
+    
+  } catch (err) {
+    console.error('[commands] notebook selection error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
+  }
+}
+
+

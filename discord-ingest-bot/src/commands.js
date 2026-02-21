@@ -194,6 +194,22 @@ export const commands = [
     ),
   
   new SlashCommandBuilder()
+    .setName('devlog')
+    .setDescription('Génère un post LinkedIn "build in public" à partir de tes commits GitHub')
+    .addIntegerOption(option =>
+      option.setName('jours')
+        .setDescription('Nombre de jours à regarder en arrière (défaut: 1 = aujourd\'hui)')
+        .setRequired(false)
+        .setMinValue(1)
+        .setMaxValue(30)
+    )
+    .addStringOption(option =>
+      option.setName('contexte')
+        .setDescription('Contexte additionnel (ex: "je lance un SaaS", "semaine de refacto")')
+        .setRequired(false)
+    ),
+
+  new SlashCommandBuilder()
     .setName('podcast')
     .setDescription('Génère un podcast audio à partir des sources de veille')
     .addStringOption(option =>
@@ -709,6 +725,9 @@ export async function handleCommand(interaction) {
         break;
       case 'thread':
         await handleThreadCommand(interaction);
+        break;
+      case 'devlog':
+        await handleDevlogCommand(interaction);
         break;
       case 'choice_notebook':
         await handleChoiceNotebookCommand(interaction);
@@ -1258,6 +1277,108 @@ Règles : hook percutant en première ligne, sauts de ligne fréquents, 800-1500
 ---
 
 Génère les deux versions complètes, prêtes à copier-coller.`;
+}
+
+/**
+ * Handle /devlog command - Generate a LinkedIn "build in public" post from GitHub commits
+ */
+async function handleDevlogCommand(interaction) {
+  await interaction.deferReply();
+
+  try {
+    const jours = interaction.options.getInteger('jours') || 1;
+    const contexte = interaction.options.getString('contexte') || '';
+
+    const periodeLabel = jours === 1 ? "aujourd'hui" : `ces ${jours} derniers jours`;
+    await interaction.editReply(`🔨 *Récupération de tes commits GitHub (${periodeLabel})...*`);
+
+    const { getRecentCommits, formatCommitsForPrompt } = await import('./github-api.js');
+    const repoCommits = await getRecentCommits(jours);
+
+    const totalCommits = repoCommits.reduce((sum, r) => sum + r.commits.length, 0);
+    console.log(`[commands] /devlog found ${totalCommits} commits across ${repoCommits.length} repos`);
+
+    if (totalCommits === 0) {
+      await interaction.editReply(`😴 Aucun commit trouvé ${periodeLabel}. Repos pushés demain !`);
+      return;
+    }
+
+    await interaction.editReply(`🔨 *${totalCommits} commits trouvés sur ${repoCommits.length} repos — génération du post LinkedIn...*`);
+
+    const commitsSummary = formatCommitsForPrompt(repoCommits);
+    const contexteBlock = contexte ? `\n\nContexte : ${contexte}` : '';
+
+    const prompt = `Tu es un développeur indie/builder qui partage son avancement quotidien sur LinkedIn en mode "build in public".
+
+Voici mes commits GitHub ${periodeLabel} :
+
+${commitsSummary}${contexteBlock}
+
+Génère un post LinkedIn "build in public" à partir de ces commits.
+
+Règles :
+- Hook percutant en première ligne (donne envie de cliquer "voir plus")
+- Raconte ce que j'ai construit/résolu de façon concrète et humaine
+- Montre la progression, les défis, les apprentissages
+- Ton authentique, pas corporate — comme un builder qui partage son vrai quotidien
+- Sauts de ligne fréquents, une idée par ligne
+- Emojis en début de ligne pour structurer (pas trop)
+- Entre 600 et 1200 caractères
+- Termine par une question ouverte ou un CTA
+- 3-5 hashtags pertinents à la fin (#buildinpublic #indiehacker #developpement etc.)
+- Langue : français
+
+Post prêt à copier-coller directement dans LinkedIn.`;
+
+    // Use NotebookLM if available, otherwise build post directly via the prompt
+    let postContent;
+    if (notebookLMClient) {
+      const notebookId = await notebookLMClient.getOrCreateMonthlyNotebook();
+      const result = await notebookLMClient.queryNotebook(notebookId, prompt);
+      postContent = result?.answer?.replace(/\s*\[\d+(?:,\s*\d+)*\](\[\d+(?:,\s*\d+)*\])*/g, '').trim();
+    }
+
+    if (!postContent) {
+      await interaction.editReply('❌ Impossible de générer le post. Réessayez plus tard.');
+      return;
+    }
+
+    // Store for LinkedIn publish button
+    const threadId = `devlog_${Date.now()}`;
+    pendingThreads.set(threadId, { content: postContent, sujet: `devlog ${periodeLabel}`, createdAt: Date.now() });
+
+    let response = `🔨 **Devlog : ${periodeLabel}**\n`;
+    response += `📊 *${totalCommits} commits sur ${repoCommits.length} repos*\n\n`;
+    response += postContent;
+    response += `\n\n---\n*Repos : ${repoCommits.map(r => r.repo).join(', ')}*`;
+
+    const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = await import('discord.js');
+    const buttons = [];
+
+    if (linkedInAvailable) {
+      buttons.push(
+        new ButtonBuilder()
+          .setCustomId(`linkedin_publish_${threadId}`)
+          .setLabel('📤 Publier sur LinkedIn')
+          .setStyle(ButtonStyle.Primary)
+      );
+    }
+
+    const chunks = splitIntoChunks(response);
+    if (buttons.length > 0) {
+      const row = new ActionRowBuilder().addComponents(...buttons);
+      await interaction.editReply({ content: chunks[0], components: [row] });
+    } else {
+      await interaction.editReply(chunks[0]);
+    }
+    for (let i = 1; i < chunks.length; i++) {
+      await interaction.followUp(`*(suite ${i + 1}/${chunks.length})*\n\n${chunks[i]}`);
+    }
+
+  } catch (err) {
+    console.error('[commands] /devlog error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
+  }
 }
 
 /**

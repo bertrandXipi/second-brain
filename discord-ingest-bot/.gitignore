@@ -3,3 +3,4 @@ node_modules/
 workdir/
 spool/
 *.log
+.linkedin-tokens.json

@@ -17,6 +17,16 @@ try {
   console.log('[commands] NotebookLM client not available:', err.message);
 }
 
+// Import LinkedIn client if available
+let linkedInAvailable = false;
+try {
+  const { isLinkedInConfigured } = await import('./linkedin-api.js');
+  linkedInAvailable = await isLinkedInConfigured();
+  console.log(`[commands] LinkedIn client: ${linkedInAvailable ? 'configured' : 'not configured'}`);
+} catch (err) {
+  console.log('[commands] LinkedIn client not available:', err.message);
+}
+
 const WORKDIR = './workdir/repo';
 const PROCESSED_PATH = 'mobile-share/processed';
 const FICHES_PATH = 'fiches';
@@ -135,6 +145,52 @@ export const commands = [
       option.setName('question')
         .setDescription('Ta question')
         .setRequired(true)
+    ),
+  
+  new SlashCommandBuilder()
+    .setName('thread')
+    .setDescription('Génère un thread Twitter/LinkedIn prêt à poster')
+    .addStringOption(option =>
+      option.setName('sujet')
+        .setDescription('Sujet du thread (ex: "agents IA", "vibe coding")')
+        .setRequired(true)
+    )
+    .addStringOption(option =>
+      option.setName('plateforme')
+        .setDescription('Plateforme cible')
+        .setRequired(false)
+        .addChoices(
+          { name: '🐦 Twitter/X (tweets courts)', value: 'twitter' },
+          { name: '💼 LinkedIn (post long)', value: 'linkedin' },
+          { name: '📝 Les deux', value: 'both' }
+        )
+    )
+    .addStringOption(option =>
+      option.setName('sources')
+        .setDescription('Quelles sources utiliser')
+        .setRequired(false)
+        .addChoices(
+          { name: '📚 Toutes les sources du notebook', value: 'all' },
+          { name: '🕐 Sources de cette semaine', value: 'week' },
+          { name: '📅 Sources d\'aujourd\'hui', value: 'today' },
+          { name: '🔗 La dernière source ajoutée', value: 'last' }
+        )
+    )
+    .addStringOption(option =>
+      option.setName('ton')
+        .setDescription('Ton du contenu')
+        .setRequired(false)
+        .addChoices(
+          { name: '🎓 Expert (données, analyse)', value: 'expert' },
+          { name: '🔥 Provocateur (opinions tranchées)', value: 'provocateur' },
+          { name: '📖 Storytelling (narratif, vécu)', value: 'storytelling' },
+          { name: '💡 Pédagogue (vulgarisation)', value: 'pedagogue' }
+        )
+    )
+    .addStringOption(option =>
+      option.setName('contexte')
+        .setDescription('Contexte additionnel (ex: "je suis freelance IA", "pour mon audience dev")')
+        .setRequired(false)
     ),
   
   new SlashCommandBuilder()
@@ -651,6 +707,9 @@ export async function handleCommand(interaction) {
       case 'podcast':
         await handlePodcastCommand(interaction);
         break;
+      case 'thread':
+        await handleThreadCommand(interaction);
+        break;
       case 'choice_notebook':
         await handleChoiceNotebookCommand(interaction);
         break;
@@ -890,6 +949,8 @@ async function handleInfoCommand(interaction) {
     reply += `• \`/ask <question>\` - Pose une question sur toutes les sources du notebook actif\n\n`;
     
     reply += `**🎙️ Génération de Contenu**\n`;
+    reply += `• \`/thread <sujet> [plateforme]\` - Génère un thread Twitter/LinkedIn prêt à poster\n`;
+    reply += `  *Plateformes :* Twitter, LinkedIn, Les deux\n`;
     reply += `• \`/podcast [format] [durée] [focus]\` - Génère un podcast audio\n`;
     reply += `  *Formats :* Deep Dive, Brief, Critique, Débat\n`;
     reply += `  *Durées :* Court (~5 min), Normal (~10 min), Long (~15 min)\n\n`;
@@ -906,6 +967,294 @@ async function handleInfoCommand(interaction) {
     console.error('[commands] /info error:', err.message);
     await interaction.editReply(`❌ Erreur: ${err.message}`);
   }
+}
+
+// Store pending threads for LinkedIn publish button
+const pendingThreads = new Map();
+
+/**
+ * Handle /thread command - Generate a Twitter/LinkedIn thread from sources
+ */
+async function handleThreadCommand(interaction) {
+  await interaction.deferReply();
+  
+  try {
+    if (!notebookLMClient) {
+      await interaction.editReply('❌ NotebookLM client non disponible.');
+      return;
+    }
+    
+    const sujet = interaction.options.getString('sujet');
+    const plateforme = interaction.options.getString('plateforme') || 'both';
+    const sourcesFilter = interaction.options.getString('sources') || 'all';
+    const ton = interaction.options.getString('ton') || 'expert';
+    const contexte = interaction.options.getString('contexte') || '';
+    
+    const platformeLabel = { twitter: 'Twitter/X', linkedin: 'LinkedIn', both: 'Twitter/X + LinkedIn' };
+    const sourcesLabel = { all: 'Toutes', week: 'Cette semaine', today: "Aujourd'hui", last: 'Dernière source' };
+    const tonLabel = { expert: '🎓 Expert', provocateur: '🔥 Provocateur', storytelling: '📖 Storytelling', pedagogue: '💡 Pédagogue' };
+    
+    await interaction.editReply(`🧵 *Génération du thread en cours...*\n\n**Sujet :** ${sujet}\n**Plateforme :** ${platformeLabel[plateforme]}\n**Sources :** ${sourcesLabel[sourcesFilter]}\n**Ton :** ${tonLabel[ton]}`);
+    
+    console.log(`[commands] /thread sujet="${sujet}" plateforme=${plateforme} sources=${sourcesFilter} ton=${ton}`);
+    
+    const { getOrCreateMonthlyNotebook } = await import('../../batch-processor/src/notebooklm-http.js');
+    const notebookId = await getOrCreateMonthlyNotebook();
+    
+    // Resolve source IDs based on filter
+    const sourceIds = await resolveSourceIds(sourcesFilter);
+    
+    // Build prompt
+    const prompt = buildThreadPrompt(sujet, plateforme, ton, contexte);
+    
+    // Query NotebookLM
+    const result = await notebookLMClient.queryNotebook(notebookId, prompt, sourceIds);
+    
+    if (!result || !result.answer) {
+      await interaction.editReply('❌ Pas de réponse de NotebookLM. Réessayez plus tard.');
+      return;
+    }
+    
+    // Extract LinkedIn content for the publish button
+    let linkedInContent = null;
+    if (plateforme === 'linkedin' || plateforme === 'both') {
+      linkedInContent = extractLinkedInContent(result.answer, plateforme);
+    }
+    
+    // Build response
+    let response = `🧵 **Thread : ${sujet}**\n📱 *${platformeLabel[plateforme]}* • ${tonLabel[ton]}\n\n${result.answer}`;
+    
+    response += `\n\n---\n`;
+    const sourceInfo = sourceIds ? `${sourceIds.length} sources sélectionnées` : `${result.sourceCount || 'toutes les'} sources`;
+    response += `*Généré à partir de ${sourceInfo}*`;
+    
+    // Build buttons
+    const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = await import('discord.js');
+    const buttons = [];
+    
+    if (linkedInContent && linkedInAvailable) {
+      const threadId = `thread_${Date.now()}`;
+      pendingThreads.set(threadId, { content: linkedInContent, sujet, createdAt: Date.now() });
+      
+      // Clean old entries (> 1h)
+      for (const [key, val] of pendingThreads) {
+        if (Date.now() - val.createdAt > 3600000) pendingThreads.delete(key);
+      }
+      
+      buttons.push(
+        new ButtonBuilder()
+          .setCustomId(`linkedin_publish_${threadId}`)
+          .setLabel('📤 Publier sur LinkedIn')
+          .setStyle(ButtonStyle.Primary)
+      );
+    } else if (linkedInContent && !linkedInAvailable) {
+      response += ` • ⚠️ *LinkedIn non configuré*`;
+    }
+    
+    if (buttons.length > 0) {
+      const row = new ActionRowBuilder().addComponents(...buttons);
+      const chunks = splitIntoChunks(response);
+      await interaction.editReply({ content: chunks[0], components: [row] });
+      for (let i = 1; i < chunks.length; i++) {
+        await interaction.followUp(`*(suite ${i + 1}/${chunks.length})*\n\n${chunks[i]}`);
+      }
+    } else {
+      await sendLongReply(interaction, response, true);
+    }
+    
+  } catch (err) {
+    console.error('[commands] /thread error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
+  }
+}
+
+/**
+ * Handle LinkedIn publish button click
+ */
+export async function handleLinkedInPublish(interaction) {
+  if (!interaction.isButton()) return;
+  if (!interaction.customId.startsWith('linkedin_publish_')) return;
+  
+  await interaction.deferReply({ ephemeral: true });
+  
+  try {
+    const threadId = interaction.customId.replace('linkedin_publish_', '');
+    const pending = pendingThreads.get(threadId);
+    
+    if (!pending) {
+      await interaction.editReply('❌ Thread expiré. Régénère avec `/thread`.');
+      return;
+    }
+    
+    console.log(`[commands] publishing to LinkedIn: "${pending.sujet}"`);
+    
+    const { publishToLinkedIn } = await import('./linkedin-api.js');
+    const result = await publishToLinkedIn(pending.content);
+    
+    // Remove from pending
+    pendingThreads.delete(threadId);
+    
+    if (result.success) {
+      await interaction.editReply(`✅ **Publié sur LinkedIn !**\n\n🔗 ${result.postUrl}`);
+      console.log(`[commands] LinkedIn post published: ${result.postId}`);
+    } else {
+      await interaction.editReply('❌ Échec de la publication.');
+    }
+    
+  } catch (err) {
+    console.error('[commands] LinkedIn publish error:', err.message);
+    await interaction.editReply(`❌ Erreur: ${err.message}`);
+  }
+}
+
+/**
+ * Resolve source IDs based on filter type
+ */
+async function resolveSourceIds(filter) {
+  if (filter === 'all') return null;
+  
+  try {
+    const processedDir = path.join(WORKDIR, PROCESSED_PATH);
+    const files = await readdir(processedDir);
+    const jsonFiles = files.filter(f => f.endsWith('.json'));
+    
+    if (jsonFiles.length === 0) return null;
+    
+    const items = [];
+    for (const f of jsonFiles) {
+      try {
+        const content = await readFile(path.join(processedDir, f), 'utf-8');
+        const data = JSON.parse(content);
+        if (data.source_id) items.push(data);
+      } catch { /* skip */ }
+    }
+    
+    if (items.length === 0) return null;
+    
+    items.sort((a, b) => new Date(b.processed_at || b.created_at) - new Date(a.processed_at || a.created_at));
+    
+    const now = new Date();
+    
+    switch (filter) {
+      case 'last':
+        return items[0]?.source_id ? [items[0].source_id] : null;
+        
+      case 'today': {
+        const todayStr = now.toISOString().split('T')[0];
+        const ids = items
+          .filter(i => (i.processed_at || i.created_at || '').startsWith(todayStr))
+          .map(i => i.source_id);
+        return ids.length > 0 ? ids : null;
+      }
+      
+      case 'week': {
+        const weekAgo = new Date(now.getTime() - 7 * 86400000);
+        const ids = items
+          .filter(i => new Date(i.processed_at || i.created_at) >= weekAgo)
+          .map(i => i.source_id);
+        return ids.length > 0 ? ids : null;
+      }
+      
+      default:
+        return null;
+    }
+  } catch (err) {
+    console.error('[commands] resolveSourceIds error:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Extract LinkedIn-specific content from the generated thread
+ */
+function extractLinkedInContent(answer, plateforme) {
+  if (plateforme === 'linkedin') return answer.trim();
+  
+  // For 'both', extract the LinkedIn section
+  const match = answer.match(/##\s*💼\s*VERSION LINKEDIN[\s\S]*?\n\n([\s\S]*?)(?=\n---|\n##|$)/i)
+    || answer.match(/LINKEDIN[\s\S]*?\n\n([\s\S]*?)(?=\n---|\n##\s*🐦|$)/i);
+  
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * Build the prompt for thread generation
+ */
+function buildThreadPrompt(sujet, plateforme, ton, contexte) {
+  const tonInstructions = {
+    expert: 'Ton expert : utilise des données chiffrées, des références précises, un vocabulaire technique accessible. Montre ton expertise sans être pédant.',
+    provocateur: 'Ton provocateur : prends position, challenge les idées reçues, utilise des formulations qui interpellent. Sois audacieux mais argumenté.',
+    storytelling: 'Ton storytelling : raconte une histoire, utilise le "je", partage une expérience ou un parcours. Crée de l\'émotion et de l\'identification.',
+    pedagogue: 'Ton pédagogue : vulgarise, utilise des analogies, structure en étapes claires. Rends le complexe simple et actionnable.',
+  };
+  
+  const contexteBlock = contexte ? `\n\nContexte de l'auteur : ${contexte}` : '';
+  let base;
+  
+  if (plateforme === 'twitter') base = buildTwitterPrompt(sujet);
+  else if (plateforme === 'linkedin') base = buildLinkedInPrompt(sujet);
+  else base = buildBothPrompt(sujet);
+  
+  return base + `\n\n${tonInstructions[ton]}${contexteBlock}`;
+}
+
+function buildTwitterPrompt(sujet) {
+  return `À partir des sources de ce notebook, génère un thread Twitter/X prêt à poster sur le sujet : "${sujet}"
+
+Règles strictes :
+- Chaque tweet fait MAX 280 caractères
+- Le premier tweet est un hook accrocheur qui donne envie de lire la suite
+- Numérote chaque tweet (1/, 2/, 3/... )
+- Entre 6 et 12 tweets
+- Utilise des emojis avec parcimonie (1-2 par tweet max)
+- Le dernier tweet est un CTA (call to action) ou une question ouverte
+- Inclus des données chiffrées ou des exemples concrets tirés des sources
+- Ton : expert accessible, pas corporate
+- Langue : français
+
+Format de sortie :
+1/ [tweet]
+
+2/ [tweet]
+
+...`;
+}
+
+function buildLinkedInPrompt(sujet) {
+  return `À partir des sources de ce notebook, génère un post LinkedIn prêt à poster sur le sujet : "${sujet}"
+
+Règles strictes :
+- Le hook (première ligne) doit être percutant et donner envie de cliquer "voir plus"
+- Structure avec des sauts de ligne fréquents (une idée par ligne)
+- Entre 800 et 1500 caractères
+- Utilise des emojis en début de ligne pour structurer
+- Inclus des données chiffrées ou exemples concrets tirés des sources
+- Termine par une question ouverte pour générer de l'engagement
+- Ajoute 3-5 hashtags pertinents à la fin
+- Ton : expert qui partage un apprentissage, pas vendeur
+- Langue : français
+
+Format : post prêt à copier-coller directement dans LinkedIn.`;
+}
+
+function buildBothPrompt(sujet) {
+  return `À partir des sources de ce notebook, génère du contenu prêt à poster sur le sujet : "${sujet}"
+
+Génère les DEUX formats suivants :
+
+---
+## 🐦 VERSION TWITTER/X (Thread)
+
+Règles : chaque tweet MAX 280 caractères, numéroté (1/, 2/...), 6-12 tweets, hook accrocheur en premier, CTA en dernier, emojis avec parcimonie, données concrètes des sources. Ton expert accessible. Français.
+
+---
+## 💼 VERSION LINKEDIN (Post)
+
+Règles : hook percutant en première ligne, sauts de ligne fréquents, 800-1500 caractères, emojis en début de ligne, données concrètes, question ouverte à la fin, 3-5 hashtags. Ton expert qui partage. Français.
+
+---
+
+Génère les deux versions complètes, prêtes à copier-coller.`;
 }
 
 /**

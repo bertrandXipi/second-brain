@@ -7,7 +7,7 @@ import { normalizeUrl } from './normalize.js';
 import { writeAndPush } from './gitWriter.js';
 import { writeSpool, removeSpool } from './spool.js';
 import { processItem } from './processor.js';
-import { registerCommands, handleCommand, handleNotebookSelection, setLastProcessed } from './commands.js';
+import { registerCommands, handleCommand, handleNotebookSelection, handleLinkedInPublish, setLastProcessed } from './commands.js';
 
 const WORKDIR = './workdir/repo';
 let git = null;
@@ -39,6 +39,10 @@ export function createClient() {
     // Handle select menu interactions
     else if (interaction.isStringSelectMenu()) {
       await handleNotebookSelection(interaction);
+    }
+    // Handle button interactions (LinkedIn publish)
+    else if (interaction.isButton()) {
+      await handleLinkedInPublish(interaction);
     }
   });
 

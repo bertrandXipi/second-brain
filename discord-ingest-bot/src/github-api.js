@@ -35,9 +35,11 @@ async function fetchUserRepos() {
 
 /**
  * Fetch commits for a repo since a given date
+ * Note: we don't filter by author= because git commit author name/email
+ * may differ from the GitHub account login (e.g. "Votre Nom" vs "bertrandXipi")
  */
 async function fetchRepoCommits(repoFullName, since) {
-  const url = `${API_BASE}/repos/${repoFullName}/commits?author=${GITHUB_USERNAME}&since=${since.toISOString()}&per_page=50`;
+  const url = `${API_BASE}/repos/${repoFullName}/commits?since=${since.toISOString()}&per_page=50`;
   const res = await fetch(url, { headers });
   if (!res.ok) return []; // skip repos with no access or errors
   const data = await res.json();

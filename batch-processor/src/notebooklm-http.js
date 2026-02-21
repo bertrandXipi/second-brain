@@ -528,6 +528,97 @@ export async function getPodcastStatus(notebookId, artifactId = null) {
 }
 
 /**
+ * Create an infographic from notebook sources
+ * @param {string} notebookId
+ * @param {object} options - { orientation, detail_level, focus, language }
+ * @returns {{ artifact_id, status }}
+ */
+export async function createInfographic(notebookId, options = {}) {
+  const { orientation = 'landscape', detail_level = 'standard', focus = '', language = 'fr' } = options;
+  console.log(`[notebooklm-http] creating infographic: orientation=${orientation}`);
+
+  const result = await callMCPTool('infographic_create', {
+    notebook_id: notebookId,
+    orientation,
+    detail_level,
+    focus_prompt: focus,
+    language,
+    confirm: true,
+  });
+
+  if (result.status === 'success') {
+    return { artifact_id: result.artifact_id, status: result.generation_status || 'in_progress' };
+  }
+  throw new Error(result.error || result.message || 'Failed to create infographic');
+}
+
+/**
+ * Create a slide deck from notebook sources
+ * @param {string} notebookId
+ * @param {object} options - { format, focus, language }
+ * @returns {{ artifact_id, status }}
+ */
+export async function createSlideDeck(notebookId, options = {}) {
+  const { format = 'detailed_deck', focus = '', language = 'fr' } = options;
+  console.log(`[notebooklm-http] creating slide deck: format=${format}`);
+
+  const result = await callMCPTool('slide_deck_create', {
+    notebook_id: notebookId,
+    format,
+    focus_prompt: focus,
+    language,
+    confirm: true,
+  });
+
+  if (result.status === 'success') {
+    return { artifact_id: result.artifact_id, status: result.generation_status || 'in_progress' };
+  }
+  throw new Error(result.error || result.message || 'Failed to create slide deck');
+}
+
+/**
+ * Poll studio_status until artifact is complete or timeout
+ * @param {string} notebookId
+ * @param {string} artifactId
+ * @param {number} maxWaitMs - default 5 minutes
+ * @returns {object} artifact data with image_url or slides_url
+ */
+export async function waitForStudioArtifact(notebookId, artifactId, maxWaitMs = 300000) {
+  const pollInterval = 15000;
+  const start = Date.now();
+
+  while (Date.now() - start < maxWaitMs) {
+    await new Promise(r => setTimeout(r, pollInterval));
+
+    const result = await callMCPTool('studio_status', { notebook_id: notebookId });
+    if (result.status !== 'success') continue;
+
+    const artifact = result.artifacts?.find(a => a.artifact_id === artifactId);
+    if (!artifact) continue;
+
+    console.log(`[notebooklm-http] artifact ${artifactId} status: ${artifact.status}`);
+
+    if (artifact.status === 'completed') return artifact;
+    if (artifact.status === 'failed') throw new Error('Artifact generation failed');
+  }
+
+  throw new Error('Timeout waiting for studio artifact');
+}
+
+/**
+ * Download a file from URL into a Buffer
+ */
+export async function downloadFile(url) {
+  console.log(`[notebooklm-http] downloading file: ${url.substring(0, 80)}...`);
+  const response = await fetch(url, { redirect: 'follow' });
+  if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+  const contentType = response.headers.get('content-type') || 'application/octet-stream';
+  const buffer = Buffer.from(await response.arrayBuffer());
+  console.log(`[notebooklm-http] downloaded ${buffer.length} bytes (${contentType})`);
+  return { buffer, contentType };
+}
+
+/**
  * Download audio file from URL (follows redirects)
  * @param {string} audioUrl - URL of the audio file
  * @returns {Promise<{buffer: Buffer, contentType: string}>} - Audio file buffer and content type

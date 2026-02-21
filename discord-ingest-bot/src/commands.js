@@ -1015,14 +1015,17 @@ async function handleThreadCommand(interaction) {
       return;
     }
     
+    // Strip NotebookLM citation numbers like [1], [2], [1,2], [1][2] etc.
+    const cleanAnswer = result.answer.replace(/\s*\[\d+(?:,\s*\d+)*\](\[\d+(?:,\s*\d+)*\])*/g, '').trim();
+    
     // Extract LinkedIn content for the publish button
     let linkedInContent = null;
     if (plateforme === 'linkedin' || plateforme === 'both') {
-      linkedInContent = extractLinkedInContent(result.answer, plateforme);
+      linkedInContent = extractLinkedInContent(cleanAnswer, plateforme);
     }
     
     // Build response
-    let response = `🧵 **Thread : ${sujet}**\n📱 *${platformeLabel[plateforme]}* • ${tonLabel[ton]}\n\n${result.answer}`;
+    let response = `🧵 **Thread : ${sujet}**\n📱 *${platformeLabel[plateforme]}* • ${tonLabel[ton]}\n\n${cleanAnswer}`;
     
     response += `\n\n---\n`;
     const sourceInfo = sourceIds ? `${sourceIds.length} sources sélectionnées` : `${result.sourceCount || 'toutes les'} sources`;

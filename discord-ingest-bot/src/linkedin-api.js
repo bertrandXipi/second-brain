@@ -215,6 +215,132 @@ export async function publishToLinkedIn(text) {
 }
 
 /**
+ * Upload an image to LinkedIn Assets API
+ * @param {Buffer} imageBuffer
+ * @param {string} contentType - e.g. 'image/png'
+ * @returns {string} asset URN
+ */
+export async function uploadImage(imageBuffer, contentType = 'image/png') {
+  console.log('[linkedin] uploading image...');
+  const accessToken = await getAccessToken();
+  const profile = await getProfile();
+  const personUrn = `urn:li:person:${profile.sub}`;
+
+  // Step 1: Register upload
+  const registerRes = await fetch('https://api.linkedin.com/v2/assets?action=registerUpload', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'X-Restli-Protocol-Version': '2.0.0',
+    },
+    body: JSON.stringify({
+      registerUploadRequest: {
+        recipes: ['urn:li:digitalmediaRecipe:feedshare-image'],
+        owner: personUrn,
+        serviceRelationships: [{
+          relationshipType: 'OWNER',
+          identifier: 'urn:li:userGeneratedContent',
+        }],
+      },
+    }),
+  });
+
+  if (!registerRes.ok) {
+    const err = await registerRes.text();
+    throw new Error(`LinkedIn register upload failed: ${registerRes.status} - ${err}`);
+  }
+
+  const registerData = await registerRes.json();
+  const uploadUrl = registerData.value.uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
+  const assetUrn = registerData.value.asset;
+
+  console.log(`[linkedin] upload URL obtained, asset: ${assetUrn}`);
+
+  // Step 2: Upload binary
+  const uploadRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': contentType,
+    },
+    body: imageBuffer,
+  });
+
+  if (!uploadRes.ok && uploadRes.status !== 201) {
+    throw new Error(`LinkedIn image upload failed: ${uploadRes.status}`);
+  }
+
+  console.log('[linkedin] image uploaded successfully');
+  return assetUrn;
+}
+
+/**
+ * Publish a post with an image on LinkedIn
+ * @param {string} text - Post content
+ * @param {string} assetUrn - LinkedIn asset URN from uploadImage()
+ * @returns {{ success, postId, postUrl }}
+ */
+export async function publishWithImage(text, assetUrn) {
+  console.log('[linkedin] publishing post with image...');
+  const accessToken = await getAccessToken();
+  const profile = await getProfile();
+  const personUrn = `urn:li:person:${profile.sub}`;
+
+  const postBody = {
+    author: personUrn,
+    lifecycleState: 'PUBLISHED',
+    specificContent: {
+      'com.linkedin.ugc.ShareContent': {
+        shareCommentary: { text },
+        shareMediaCategory: 'IMAGE',
+        media: [{
+          status: 'READY',
+          media: assetUrn,
+        }],
+      },
+    },
+    visibility: {
+      'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC',
+    },
+  };
+
+  const response = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'X-Restli-Protocol-Version': '2.0.0',
+    },
+    body: JSON.stringify(postBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    if (response.status === 401) {
+      const newToken = await refreshAccessToken();
+      const retry = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${newToken}`,
+          'Content-Type': 'application/json',
+          'X-Restli-Protocol-Version': '2.0.0',
+        },
+        body: JSON.stringify(postBody),
+      });
+      if (!retry.ok) throw new Error(`LinkedIn publish failed: ${retry.status}`);
+      const postId = retry.headers.get('x-restli-id') || 'unknown';
+      return { success: true, postId, postUrl: `https://www.linkedin.com/feed/update/${postId}` };
+    }
+    throw new Error(`LinkedIn publish with image failed: ${response.status} - ${errorText}`);
+  }
+
+  const postId = response.headers.get('x-restli-id') || 'unknown';
+  console.log(`[linkedin] published with image: ${postId}`);
+  return { success: true, postId, postUrl: `https://www.linkedin.com/feed/update/${postId}` };
+}
+
+/**
  * Check if LinkedIn is configured and tokens exist
  */
 export async function isLinkedInConfigured() {

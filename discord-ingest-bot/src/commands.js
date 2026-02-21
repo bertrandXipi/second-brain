@@ -191,6 +191,26 @@ export const commands = [
       option.setName('contexte')
         .setDescription('Contexte additionnel (ex: "je suis freelance IA", "pour mon audience dev")')
         .setRequired(false)
+    )
+    .addStringOption(option =>
+      option.setName('funnel')
+        .setDescription('Étape du funnel marketing (défaut: MOFU)')
+        .setRequired(false)
+        .addChoices(
+          { name: '🌱 TOFU — Notoriété (audience froide, tendances, questions ouvertes)', value: 'tofu' },
+          { name: '🔥 MOFU — Considération (méthodes, retours d\'expérience, engagement)', value: 'mofu' },
+          { name: '🎯 BOFU — Conversion (résultats, preuves, CTA direct)', value: 'bofu' }
+        )
+    )
+    .addStringOption(option =>
+      option.setName('media')
+        .setDescription('Ajouter un visuel généré par NotebookLM au post LinkedIn')
+        .setRequired(false)
+        .addChoices(
+          { name: '🖼️ Infographie (image attachée au post)', value: 'infographic' },
+          { name: '📊 Slides (lien Google Slides dans le post)', value: 'slides' },
+          { name: '❌ Aucun (texte seul)', value: 'none' }
+        )
     ),
   
   new SlashCommandBuilder()
@@ -207,6 +227,16 @@ export const commands = [
       option.setName('contexte')
         .setDescription('Contexte additionnel (ex: "je lance un SaaS", "semaine de refacto")')
         .setRequired(false)
+    )
+    .addStringOption(option =>
+      option.setName('media')
+        .setDescription('Ajouter un visuel généré par NotebookLM au post LinkedIn')
+        .setRequired(false)
+        .addChoices(
+          { name: '🖼️ Infographie (image attachée au post)', value: 'infographic' },
+          { name: '📊 Slides (lien Google Slides dans le post)', value: 'slides' },
+          { name: '❌ Aucun (texte seul)', value: 'none' }
+        )
     ),
 
   new SlashCommandBuilder()
@@ -1008,14 +1038,16 @@ async function handleThreadCommand(interaction) {
     const sourcesFilter = interaction.options.getString('sources') || 'all';
     const ton = interaction.options.getString('ton') || 'expert';
     const contexte = interaction.options.getString('contexte') || '';
+    const funnel = interaction.options.getString('funnel') || 'mofu';
     
     const platformeLabel = { twitter: 'Twitter/X', linkedin: 'LinkedIn', both: 'Twitter/X + LinkedIn' };
     const sourcesLabel = { all: 'Toutes', week: 'Cette semaine', today: "Aujourd'hui", last: 'Dernière source' };
     const tonLabel = { expert: '🎓 Expert', provocateur: '🔥 Provocateur', storytelling: '📖 Storytelling', pedagogue: '💡 Pédagogue' };
+    const funnelLabel = { tofu: '🌱 TOFU', mofu: '🔥 MOFU', bofu: '🎯 BOFU' };
     
-    await interaction.editReply(`🧵 *Génération du thread en cours...*\n\n**Sujet :** ${sujet}\n**Plateforme :** ${platformeLabel[plateforme]}\n**Sources :** ${sourcesLabel[sourcesFilter]}\n**Ton :** ${tonLabel[ton]}`);
+    await interaction.editReply(`🧵 *Génération du thread en cours...*\n\n**Sujet :** ${sujet}\n**Plateforme :** ${platformeLabel[plateforme]}\n**Sources :** ${sourcesLabel[sourcesFilter]}\n**Ton :** ${tonLabel[ton]}\n**Funnel :** ${funnelLabel[funnel]}`);
     
-    console.log(`[commands] /thread sujet="${sujet}" plateforme=${plateforme} sources=${sourcesFilter} ton=${ton}`);
+    console.log(`[commands] /thread sujet="${sujet}" plateforme=${plateforme} sources=${sourcesFilter} ton=${ton} funnel=${funnel}`);
     
     const { getOrCreateMonthlyNotebook } = await import('../../batch-processor/src/notebooklm-http.js');
     const notebookId = await getOrCreateMonthlyNotebook();
@@ -1024,7 +1056,7 @@ async function handleThreadCommand(interaction) {
     const sourceIds = await resolveSourceIds(sourcesFilter);
     
     // Build prompt
-    const prompt = buildThreadPrompt(sujet, plateforme, ton, contexte);
+    const prompt = buildThreadPrompt(sujet, plateforme, ton, contexte, funnel);
     
     // Query NotebookLM
     const result = await notebookLMClient.queryNotebook(notebookId, prompt, sourceIds);
@@ -1110,8 +1142,16 @@ export async function handleLinkedInPublish(interaction) {
     
     console.log(`[commands] publishing to LinkedIn: "${pending.sujet}"`);
     
-    const { publishToLinkedIn } = await import('./linkedin-api.js');
-    const result = await publishToLinkedIn(pending.content);
+    const { publishToLinkedIn, publishWithImage, uploadImage } = await import('./linkedin-api.js');
+
+    let result;
+    if (pending.media?.type === 'infographic' && pending.media.imageBuffer) {
+      await interaction.editReply('⏳ *Upload de l\'image sur LinkedIn...*');
+      const assetUrn = await uploadImage(pending.media.imageBuffer, pending.media.contentType || 'image/png');
+      result = await publishWithImage(pending.content, assetUrn);
+    } else {
+      result = await publishToLinkedIn(pending.content);
+    }
     
     // Remove from pending
     pendingThreads.delete(threadId);
@@ -1202,22 +1242,22 @@ function extractLinkedInContent(answer, plateforme) {
 /**
  * Build the prompt for thread generation
  */
-function buildThreadPrompt(sujet, plateforme, ton, contexte) {
+function buildThreadPrompt(sujet, plateforme, ton, contexte, funnel = 'mofu') {
   const tonInstructions = {
     expert: 'Ton expert : utilise des données chiffrées, des références précises, un vocabulaire technique accessible. Montre ton expertise sans être pédant.',
     provocateur: 'Ton provocateur : prends position, challenge les idées reçues, utilise des formulations qui interpellent. Sois audacieux mais argumenté.',
     storytelling: 'Ton storytelling : raconte une histoire, utilise le "je", partage une expérience ou un parcours. Crée de l\'émotion et de l\'identification.',
     pedagogue: 'Ton pédagogue : vulgarise, utilise des analogies, structure en étapes claires. Rends le complexe simple et actionnable.',
   };
-  
+
   const contexteBlock = contexte ? `\n\nContexte de l'auteur : ${contexte}` : '';
   let base;
-  
+
   if (plateforme === 'twitter') base = buildTwitterPrompt(sujet);
-  else if (plateforme === 'linkedin') base = buildLinkedInPrompt(sujet);
-  else base = buildBothPrompt(sujet);
-  
-  return base + `\n\n${tonInstructions[ton]}${contexteBlock}`;
+  else if (plateforme === 'linkedin') base = buildLinkedInPrompt(sujet, funnel);
+  else base = buildBothPrompt(sujet, funnel);
+
+  return base + `\n\n${tonInstructions[ton] || ''}${contexteBlock}`;
 }
 
 function buildTwitterPrompt(sujet) {
@@ -1242,24 +1282,64 @@ Format de sortie :
 ...`;
 }
 
-function buildLinkedInPrompt(sujet) {
+function buildLinkedInPrompt(sujet, funnel = 'mofu') {
+  const bofu_cta = process.env.BOFU_CTA || 'DM si tu veux qu\'on en parle.';
+
+  const funnelInstructions = {
+    tofu: `ÉTAPE DU FUNNEL : TOFU (Notoriété)
+Objectif : toucher une audience froide qui ne te connaît pas encore.
+- Hook : observation surprenante, question ouverte, tendance émergente sur le sujet
+- Ton : curieux et accessible, pas d'expertise affichée frontalement
+- Contenu : tendances, chiffres du secteur, questions qui font réfléchir
+- Pas de méthode personnelle, pas de "voici comment je fais"
+- CTA : question ouverte large ("Et vous, vous avez remarqué ça ?")
+- Pas de promotion, pas de lien`,
+
+    mofu: `ÉTAPE DU FUNNEL : MOFU (Considération)
+Objectif : engager une audience qui te suit déjà, montrer ton expertise.
+- Hook : constat concret tiré de ton expérience ou des sources
+- Ton : expert qui partage, narration à la première personne
+- Contenu : méthode concrète, retour d'expérience, comparatif, "voici comment je fais"
+- Liste avec → pour les points actionnables
+- CTA : question qui invite à partager leur expérience ("Comment tu gères ça de ton côté ?")`,
+
+    bofu: `ÉTAPE DU FUNNEL : BOFU (Conversion)
+Objectif : convertir une audience chaude en action concrète.
+- Hook : résultat chiffré ou transformation visible
+- Ton : direct, preuves sociales, confiance
+- Contenu : résultats obtenus, avant/après, cas concret avec chiffres des sources
+- Montre la transformation, pas juste la méthode
+- CTA direct et sans ambiguïté : "${bofu_cta}"
+- P.S. avec lien ou action concrète si pertinent`,
+  };
+
   return `À partir des sources de ce notebook, génère un post LinkedIn prêt à poster sur le sujet : "${sujet}"
 
-Règles strictes :
-- Le hook (première ligne) doit être percutant et donner envie de cliquer "voir plus"
-- Structure avec des sauts de ligne fréquents (une idée par ligne)
-- Entre 800 et 1500 caractères
-- Utilise des emojis en début de ligne pour structurer
-- Inclus des données chiffrées ou exemples concrets tirés des sources
-- Termine par une question ouverte pour générer de l'engagement
-- Ajoute 3-5 hashtags pertinents à la fin
-- Ton : expert qui partage un apprentissage, pas vendeur
-- Langue : français
+${funnelInstructions[funnel] || funnelInstructions.mofu}
 
-Format : post prêt à copier-coller directement dans LinkedIn.`;
+STRUCTURE (dans cet ordre) :
+1. Hook : 1-3 lignes max.
+2. Contexte/problème : 2-4 lignes.
+3. Pivot : une ligne de transition courte.
+4. Méthode ou preuves : liste avec → (3-5 points).
+5. Conclusion : 1-2 lignes.
+6. CTA adapté au funnel ci-dessus.
+
+RÈGLES DE FORME :
+- Une idée = une ligne. Jamais plus de 3 lignes consécutives sans saut.
+- Listes avec → uniquement.
+- Langage direct et familier-pro.
+- MAX 3 emojis sur tout le post.
+- 2-3 hashtags à la toute fin.
+- Entre 800 et 1400 caractères.
+- Langue : français.
+
+INTERDICTIONS : ne jamais écrire "Mais (et c'est un gros MAIS)" ni aucune variante. Pas d'emojis en début de chaque ligne. Pas de chiffres inventés.
+
+Post prêt à copier-coller.`;
 }
 
-function buildBothPrompt(sujet) {
+function buildBothPrompt(sujet, funnel = 'mofu') {
   return `À partir des sources de ce notebook, génère du contenu prêt à poster sur le sujet : "${sujet}"
 
 Génère les DEUX formats suivants :
@@ -1272,11 +1352,44 @@ Règles : chaque tweet MAX 280 caractères, numéroté (1/, 2/...), 6-12 tweets,
 ---
 ## 💼 VERSION LINKEDIN (Post)
 
-Règles : hook percutant en première ligne, sauts de ligne fréquents, 800-1500 caractères, emojis en début de ligne, données concrètes, question ouverte à la fin, 3-5 hashtags. Ton expert qui partage. Français.
+${buildLinkedInPrompt(sujet, funnel).split('\n').slice(2).join('\n')}
 
 ---
 
 Génère les deux versions complètes, prêtes à copier-coller.`;
+}
+
+/**
+ * Generate a NotebookLM media artifact (infographic or slides) and return attachment info.
+ * Runs in background — caller should already have sent a status message.
+ * @param {string} notebookId
+ * @param {'infographic'|'slides'} mediaType
+ * @param {string} focus - optional focus prompt
+ * @returns {{ type, imageBuffer, contentType, slidesUrl } | null}
+ */
+async function generateMedia(notebookId, mediaType, focus = '') {
+  const { createInfographic, createSlideDeck, waitForStudioArtifact, downloadFile } = await import('../../batch-processor/src/notebooklm-http.js');
+
+  if (mediaType === 'infographic') {
+    const { artifact_id } = await createInfographic(notebookId, { focus, language: 'fr' });
+    console.log(`[commands] infographic artifact started: ${artifact_id}`);
+    const artifact = await waitForStudioArtifact(notebookId, artifact_id);
+    const imageUrl = artifact.image_url || artifact.url;
+    if (!imageUrl) throw new Error('No image URL in completed infographic artifact');
+    const { buffer, contentType } = await downloadFile(imageUrl);
+    return { type: 'infographic', imageBuffer: buffer, contentType };
+  }
+
+  if (mediaType === 'slides') {
+    const { artifact_id } = await createSlideDeck(notebookId, { focus, language: 'fr' });
+    console.log(`[commands] slides artifact started: ${artifact_id}`);
+    const artifact = await waitForStudioArtifact(notebookId, artifact_id);
+    const slidesUrl = artifact.slides_url || artifact.url || artifact.drive_url;
+    if (!slidesUrl) throw new Error('No slides URL in completed artifact');
+    return { type: 'slides', slidesUrl };
+  }
+
+  return null;
 }
 
 /**
@@ -1288,6 +1401,7 @@ async function handleDevlogCommand(interaction) {
   try {
     const jours = interaction.options.getInteger('jours') || 1;
     const contexte = interaction.options.getString('contexte') || '';
+    const mediaType = interaction.options.getString('media') || 'none';
 
     const periodeLabel = jours === 1 ? "aujourd'hui" : `ces ${jours} derniers jours`;
     await interaction.editReply(`🔨 *Récupération de tes commits GitHub (${periodeLabel})...*`);
@@ -1303,12 +1417,13 @@ async function handleDevlogCommand(interaction) {
       return;
     }
 
-    await interaction.editReply(`🔨 *${totalCommits} commits trouvés sur ${repoCommits.length} repos — génération du post LinkedIn...*`);
+    const mediaLabel = mediaType === 'infographic' ? ' + 🖼️ infographie' : mediaType === 'slides' ? ' + 📊 slides' : '';
+    await interaction.editReply(`🔨 *${totalCommits} commits trouvés sur ${repoCommits.length} repos — génération du post LinkedIn${mediaLabel}...*`);
 
     const commitsSummary = formatCommitsForPrompt(repoCommits);
     const contexteBlock = contexte ? `\n\nContexte : ${contexte}` : '';
 
-    const prompt = `Tu es un développeur indie/builder qui partage son avancement quotidien sur LinkedIn en mode "build in public".
+    const prompt = `Tu es un builder/développeur indie qui partage son avancement quotidien sur LinkedIn en mode "build in public".
 
 Voici mes commits GitHub ${periodeLabel} :
 
@@ -1316,41 +1431,65 @@ ${commitsSummary}${contexteBlock}
 
 Génère un post LinkedIn "build in public" à partir de ces commits.
 
-Règles :
-- Hook percutant en première ligne (donne envie de cliquer "voir plus")
-- Raconte ce que j'ai construit/résolu de façon concrète et humaine
-- Montre la progression, les défis, les apprentissages
-- Ton authentique, pas corporate — comme un builder qui partage son vrai quotidien
-- Sauts de ligne fréquents, une idée par ligne
-- Emojis en début de ligne pour structurer (pas trop)
-- Entre 600 et 1200 caractères
-- Termine par une question ouverte ou un CTA
-- 3-5 hashtags pertinents à la fin (#buildinpublic #indiehacker #developpement etc.)
-- Langue : français
+STRUCTURE (dans cet ordre) :
+1. Hook : 1-3 lignes. Ce que j'ai fait/résolu, formulé de façon directe et concrète.
+2. Contexte : le problème que ça résout ou le défi que j'ai rencontré (2-4 lignes).
+3. Pivot : une ligne de transition courte ("Ce que j'ai changé :" ou "Comment j'ai résolu ça :").
+4. Détail : liste avec → (3-5 points concrets tirés des commits).
+5. Conclusion : 1-2 lignes. Résultat ou apprentissage.
+6. CTA : question ouverte.
+
+RÈGLES DE FORME :
+- Une idée = une ligne. Jamais plus de 3 lignes consécutives sans saut.
+- Listes avec → uniquement.
+- Langage direct et familier-pro. Pas de jargon, pas de formules toutes faites.
+- MAX 3 emojis sur tout le post.
+- 2-3 hashtags à la toute fin (#buildinpublic #indiehacker ou similaires).
+- Entre 600 et 1200 caractères.
+- Langue : français.
+
+INTERDICTIONS ABSOLUES :
+- Ne jamais écrire "Mais (et c'est un gros MAIS)" ni aucune variante de cette tournure.
+- Pas d'emojis en début de chaque ligne.
+- Pas de "Voici pourquoi", "La vérité c'est que", "Ce que personne ne dit".
+- Pas de chiffres inventés — utilise uniquement ce qui est dans les commits.
 
 Post prêt à copier-coller directement dans LinkedIn.`;
 
-    // Use NotebookLM if available, otherwise build post directly via the prompt
-    let postContent;
-    if (notebookLMClient) {
-      const notebookId = await notebookLMClient.getOrCreateMonthlyNotebook();
-      const result = await notebookLMClient.queryNotebook(notebookId, prompt);
-      postContent = result?.answer?.replace(/\s*\[\d+(?:,\s*\d+)*\](\[\d+(?:,\s*\d+)*\])*/g, '').trim();
-    }
+    // Generate post text and media in parallel
+    const notebookId = await notebookLMClient.getOrCreateMonthlyNotebook();
+
+    const [postResult, mediaResult] = await Promise.allSettled([
+      notebookLMClient.queryNotebook(notebookId, prompt),
+      mediaType !== 'none' ? generateMedia(notebookId, mediaType, `Devlog ${periodeLabel} : ${repoCommits.map(r => r.repo).join(', ')}`) : Promise.resolve(null),
+    ]);
+
+    const postContent = postResult.status === 'fulfilled'
+      ? postResult.value?.answer?.replace(/\s*\[\d+(?:,\s*\d+)*\](\[\d+(?:,\s*\d+)*\])*/g, '').trim()
+      : null;
 
     if (!postContent) {
       await interaction.editReply('❌ Impossible de générer le post. Réessayez plus tard.');
       return;
     }
 
+    const media = mediaResult.status === 'fulfilled' ? mediaResult.value : null;
+    if (mediaResult.status === 'rejected') {
+      console.error('[commands] media generation failed:', mediaResult.reason?.message);
+    }
+
+    // Build response text
+    let response = `🔨 **Devlog : ${periodeLabel}**\n`;
+    response += `📊 *${totalCommits} commits sur ${repoCommits.length} repos*\n`;
+    if (media?.type === 'slides' && media.slidesUrl) {
+      response += `📊 [Voir les slides](${media.slidesUrl})\n`;
+    }
+    response += `\n${postContent}`;
+    response += `\n\n---\n*Repos : ${repoCommits.map(r => r.repo).join(', ')}*`;
+
     // Store for LinkedIn publish button
     const threadId = `devlog_${Date.now()}`;
-    pendingThreads.set(threadId, { content: postContent, sujet: `devlog ${periodeLabel}`, createdAt: Date.now() });
-
-    let response = `🔨 **Devlog : ${periodeLabel}**\n`;
-    response += `📊 *${totalCommits} commits sur ${repoCommits.length} repos*\n\n`;
-    response += postContent;
-    response += `\n\n---\n*Repos : ${repoCommits.map(r => r.repo).join(', ')}*`;
+    pendingThreads.set(threadId, { content: postContent, sujet: `devlog ${periodeLabel}`, createdAt: Date.now(), media });
 
     const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = await import('discord.js');
     const buttons = [];
@@ -1359,20 +1498,36 @@ Post prêt à copier-coller directement dans LinkedIn.`;
       buttons.push(
         new ButtonBuilder()
           .setCustomId(`linkedin_publish_${threadId}`)
-          .setLabel('📤 Publier sur LinkedIn')
+          .setLabel(media?.type === 'infographic' ? '📤 Publier sur LinkedIn (avec image)' : '📤 Publier sur LinkedIn')
           .setStyle(ButtonStyle.Primary)
       );
     }
 
     const chunks = splitIntoChunks(response);
-    if (buttons.length > 0) {
-      const row = new ActionRowBuilder().addComponents(...buttons);
-      await interaction.editReply({ content: chunks[0], components: [row] });
+
+    // If we have an infographic, attach it to the first Discord message
+    if (media?.type === 'infographic' && media.imageBuffer) {
+      const { AttachmentBuilder } = await import('discord.js');
+      const attachment = new AttachmentBuilder(media.imageBuffer, { name: 'infographie.png' });
+      const replyOptions = { content: chunks[0], files: [attachment] };
+      if (buttons.length > 0) {
+        replyOptions.components = [new ActionRowBuilder().addComponents(...buttons)];
+      }
+      await interaction.editReply(replyOptions);
     } else {
-      await interaction.editReply(chunks[0]);
+      const replyOptions = { content: chunks[0] };
+      if (buttons.length > 0) {
+        replyOptions.components = [new ActionRowBuilder().addComponents(...buttons)];
+      }
+      await interaction.editReply(replyOptions);
     }
+
     for (let i = 1; i < chunks.length; i++) {
       await interaction.followUp(`*(suite ${i + 1}/${chunks.length})*\n\n${chunks[i]}`);
+    }
+
+    if (mediaResult.status === 'rejected') {
+      await interaction.followUp(`⚠️ *La génération du média a échoué : ${mediaResult.reason?.message}. Le post texte est prêt.*`);
     }
 
   } catch (err) {

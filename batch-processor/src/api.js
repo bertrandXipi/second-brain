@@ -130,7 +130,7 @@ app.post('/archive', async (req, res) => {
     const git = simpleGit(REPO_PATH);
     
     await git.pull('origin', 'main', { '--rebase': 'true' }).catch(() => {});
-    await git.add(fichePath);
+    await git.raw(['add', '-f', fichePath]);
     
     const commitMsg = `feat(${source}): ${fetchResult.title}`;
     await git.commit(commitMsg, [fichePath]);

@@ -31,14 +31,16 @@ export async function initGit() {
 export async function pullLatest() {
   console.log('[git] pulling...');
   try {
-    await git.pull('origin', config.github.branch, ['--rebase']);
+    // Stash any unstaged changes before pulling to avoid rebase conflicts
+    await git.stash();
+    await git.pull('origin', config.github.branch);
     console.log('[git] pull ok');
   } catch (err) {
-    // Retry once after a short delay
     console.log('[git] pull failed, retrying...');
     await new Promise(r => setTimeout(r, 2000));
     try {
-      await git.pull('origin', config.github.branch, ['--rebase']);
+      await git.stash();
+      await git.pull('origin', config.github.branch);
       console.log('[git] pull ok (retry)');
     } catch (retryErr) {
       const error = new Error(`Git pull failed after retry: ${retryErr.message}`);

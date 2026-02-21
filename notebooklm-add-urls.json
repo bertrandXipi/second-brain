@@ -1,0 +1,722 @@
+[
+  {
+    "index": 1,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/2233671-rise-features-and-their-benefits"
+  },
+  {
+    "index": 2,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4027788-migrating-existing-gift-cards-to-rise-ai"
+  },
+  {
+    "index": 3,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020942-migrating-to-rise-from-other-loyalty-programs"
+  },
+  {
+    "index": 4,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3313387-feature-customization-showroom"
+  },
+  {
+    "index": 5,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020937-setting-up-your-loyalty-program-checklist"
+  },
+  {
+    "index": 6,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4859046-multi-store-solution-for-gift-cards"
+  },
+  {
+    "index": 7,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/8111704-multi-store-solution-for-loyalty-programs"
+  },
+  {
+    "index": 8,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/10315626-integrating-rise-ai-into-your-headless-store"
+  },
+  {
+    "index": 9,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4427326-pricing"
+  },
+  {
+    "index": 10,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020960-change-your-store-s-name"
+  },
+  {
+    "index": 11,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020957-change-merchant-email"
+  },
+  {
+    "index": 12,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/2678634-uninstall-rise-from-your-shopify-store"
+  },
+  {
+    "index": 13,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020886-how-customers-engage-with-your-loyalty-program"
+  },
+  {
+    "index": 14,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/6655950-overview-of-the-rise-loyalty-program-and-faq"
+  },
+  {
+    "index": 15,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020907-how-to-create-a-vip-loyalty-program"
+  },
+  {
+    "index": 16,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020898-how-to-create-an-aov-booster-flow"
+  },
+  {
+    "index": 17,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020904-how-to-create-a-first-purchase-reward"
+  },
+  {
+    "index": 18,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020903-how-to-create-an-account-creation-reward"
+  },
+  {
+    "index": 19,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020887-how-to-create-a-punch-card-flow"
+  },
+  {
+    "index": 20,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020875-how-to-create-a-reward-for-every-purchase-flow"
+  },
+  {
+    "index": 21,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4383790-canceling-and-management-of-rewards-for-refunded-orders"
+  },
+  {
+    "index": 22,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/6541343-custom-triggers"
+  },
+  {
+    "index": 23,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/2233029-setting-up-your-gift-cards"
+  },
+  {
+    "index": 24,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020869-how-customers-interact-with-rise-s-gift-cards"
+  },
+  {
+    "index": 25,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5402590-testing-your-gift-card-product"
+  },
+  {
+    "index": 26,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4003124-fraud-detection-integration"
+  },
+  {
+    "index": 27,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5095690-rise-gift-card-vs-shopify-s-which-should-you-choose"
+  },
+  {
+    "index": 28,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/8442844-offer-gift-cards-for-out-of-stock-items"
+  },
+  {
+    "index": 29,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4839085-how-to-add-and-style-the-send-as-a-gift-button"
+  },
+  {
+    "index": 30,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020850-gift-card-faq"
+  },
+  {
+    "index": 31,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/2396584-manage-your-gift-cards-and-store-credit"
+  },
+  {
+    "index": 32,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5198812-rise-s-gifting-api"
+  },
+  {
+    "index": 33,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3736583-advanced-gift-card-actions"
+  },
+  {
+    "index": 34,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3321609-how-to-create-a-buy-one-get-one-incentive-for-gift-cards"
+  },
+  {
+    "index": 35,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020676-adding-store-credit-gift-cards-on-apple-wallets"
+  },
+  {
+    "index": 36,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3995072-issuing-store-credit"
+  },
+  {
+    "index": 37,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3115295-how-customers-redeem-store-credit"
+  },
+  {
+    "index": 38,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4002242-how-customers-can-check-their-store-credit-balance"
+  },
+  {
+    "index": 39,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4185983-liability-and-history-report-for-accounting-and-management"
+  },
+  {
+    "index": 40,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4002295-manage-customers-in-the-customers-tab"
+  },
+  {
+    "index": 41,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5682663-how-to-use-the-bulk-loyalty-card-tool"
+  },
+  {
+    "index": 42,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4002302-issue-store-credit-for-refunds-returns"
+  },
+  {
+    "index": 43,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3077706-what-s-the-difference-between-gift-cards-and-store-credit"
+  },
+  {
+    "index": 44,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3995014-account-page-customization"
+  },
+  {
+    "index": 45,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4002474-how-the-rise-referrals-program-works"
+  },
+  {
+    "index": 46,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5200634-guide-to-setting-up-a-referrals-program"
+  },
+  {
+    "index": 47,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5218217-how-to-create-a-dedicated-referrals-page"
+  },
+  {
+    "index": 48,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4002969-create-store-credit-loyalty-workflows"
+  },
+  {
+    "index": 49,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020864-workflow-triggers"
+  },
+  {
+    "index": 50,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020835-workflow-conditions"
+  },
+  {
+    "index": 51,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020866-workflow-actions"
+  },
+  {
+    "index": 52,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/collections/2369576-gift-card-customizations"
+  },
+  {
+    "index": 53,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3994983-check-balance-page-customization"
+  },
+  {
+    "index": 54,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/2364887-customize-the-gifting-pop-up"
+  },
+  {
+    "index": 55,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/2364767-greeting-card-customization"
+  },
+  {
+    "index": 56,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020934-customize-your-gift-button"
+  },
+  {
+    "index": 57,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/collections/2369578-loyalty-customization"
+  },
+  {
+    "index": 58,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4947161-how-to-setup-your-rewards-page"
+  },
+  {
+    "index": 59,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4923118-how-to-add-the-store-credit-button-in-the-account-page"
+  },
+  {
+    "index": 60,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4162007-one-click-apply-button-customization"
+  },
+  {
+    "index": 61,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3798233-account-page-module-customization"
+  },
+  {
+    "index": 62,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4003172-rewards-widget-customization"
+  },
+  {
+    "index": 63,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/11674816-how-to-set-up-and-customize-the-view-store-credit-banner"
+  },
+  {
+    "index": 64,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/collections/2369580-notification-customizations"
+  },
+  {
+    "index": 65,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4002309-how-to-set-up-your-store-credit-and-gift-card-emails"
+  },
+  {
+    "index": 66,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/6533704-email-settings"
+  },
+  {
+    "index": 67,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/6738289-set-up-gift-card-store-credit-reminders"
+  },
+  {
+    "index": 68,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4002462-adding-your-logo-to-all-emails-from-rise"
+  },
+  {
+    "index": 69,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5826955-how-to-activate-white-labeling-for-emails"
+  },
+  {
+    "index": 70,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5223445-workflow-performance"
+  },
+  {
+    "index": 71,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/6962899-gift-card-analytics"
+  },
+  {
+    "index": 72,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5731688-bulk-performance-tracking"
+  },
+  {
+    "index": 73,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020863-rise-analytics"
+  },
+  {
+    "index": 74,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/collections/3584310-notifications"
+  },
+  {
+    "index": 75,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4002782-rise-klaviyo-integration"
+  },
+  {
+    "index": 76,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/6121910-rise-klaviyo-integration-gift-cards-flow-setup"
+  },
+  {
+    "index": 77,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/6132610-rise-klaviyo-integration-store-credit-setup"
+  },
+  {
+    "index": 78,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/6122009-rise-klaviyo-integration-gift-cards-events"
+  },
+  {
+    "index": 79,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5178932-advanced-actions-with-klaviyo-x-rise-integration"
+  },
+  {
+    "index": 80,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4348908-pushowl-integration"
+  },
+  {
+    "index": 81,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/collections/3584314-returns"
+  },
+  {
+    "index": 82,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4751099-loop-integration"
+  },
+  {
+    "index": 83,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/6335659-narvar-integration"
+  },
+  {
+    "index": 84,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/8074713-returngo-integration"
+  },
+  {
+    "index": 85,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/9838677-rise-ai-aftership-integration"
+  },
+  {
+    "index": 86,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/9772837-rise-postco-integration"
+  },
+  {
+    "index": 87,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/9991980-rise-ai-swap-integration"
+  },
+  {
+    "index": 88,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/collections/3584316-reviews"
+  },
+  {
+    "index": 89,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4315151-loox-integration"
+  },
+  {
+    "index": 90,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4002591-rise-yotpo-integration"
+  },
+  {
+    "index": 91,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4546735-okendo-integration"
+  },
+  {
+    "index": 92,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4371798-ali-reviews-integration"
+  },
+  {
+    "index": 93,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/collections/3584324-other"
+  },
+  {
+    "index": 94,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/10308561-rise-ai-gorgias-integration"
+  },
+  {
+    "index": 95,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4086993-integrating-your-loyalty-program-to-shopify-pos"
+  },
+  {
+    "index": 96,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4086991-integrating-your-gift-cards-to-shopify-pos"
+  },
+  {
+    "index": 97,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4003341-how-rise-integrates-with-your-pos"
+  },
+  {
+    "index": 98,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/2791222-recharge-integration"
+  },
+  {
+    "index": 99,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/2392385-shopify-flow-connector-automatic-gift-card-and-store-credit-sending"
+  },
+  {
+    "index": 100,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/9697405-tapcart-integration"
+  },
+  {
+    "index": 101,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/collections/2635692-getting-started"
+  },
+  {
+    "index": 102,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4656614-best-practices"
+  },
+  {
+    "index": 103,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3869185-loyalty-rewards-showroom"
+  },
+  {
+    "index": 104,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3869342-gift-card-showroom"
+  },
+  {
+    "index": 105,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/3878283-full-branding-case-study-haus"
+  },
+  {
+    "index": 106,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/collections/2635687-by-asset"
+  },
+  {
+    "index": 107,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/5049886-rewards-page-examples"
+  },
+  {
+    "index": 108,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4614866-gift-card-examples"
+  },
+  {
+    "index": 109,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4622230-gifting-pop-up-examples"
+  },
+  {
+    "index": 110,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4629021-email-examples"
+  },
+  {
+    "index": 111,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4622594-rewards-widget-examples"
+  },
+  {
+    "index": 112,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/collections/2635691-by-industry"
+  },
+  {
+    "index": 113,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4615274-fashion-apparel-examples"
+  },
+  {
+    "index": 114,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4699644-food-beverages-examples"
+  },
+  {
+    "index": 115,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4699577-beauty-lifestyle-examples"
+  },
+  {
+    "index": 116,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4146281-how-rise-works-with-your-store-s-currency"
+  },
+  {
+    "index": 117,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020897-gdpr-ccpa-compliance"
+  },
+  {
+    "index": 118,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/2385745-translation"
+  },
+  {
+    "index": 119,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020893-test-functionalities"
+  },
+  {
+    "index": 120,
+    "tool": "mcp_notebooklm_notebook_add_url",
+    "notebook_id": "968a9497-9823-449e-9440-be8f02d454cf",
+    "url": "http://help.rise.ai/en/articles/4020888-changing-your-shopify-theme"
+  }
+]

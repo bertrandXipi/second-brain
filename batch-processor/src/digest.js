@@ -52,7 +52,7 @@ function getWeekNumber(date) {
 }
 
 async function generateDigest(fiches) {
-  console.log('[digest] generating with gemini...');
+  console.log('[digest] generating with deepseek...');
 
   const fichesText = fiches.map(f => {
     // Extract just the summary and key points
@@ -86,7 +86,8 @@ Format ta réponse en Markdown, sois concis et actionnable.`;
   writeFileSync(tempFile, prompt);
 
   try {
-    const result = execSync(`gemini < "${tempFile}"`, {
+    // Using DeepSeek via llm CLI
+    const result = execSync(`llm -m deepseek-chat < "${tempFile}"`, {
       encoding: 'utf-8',
       timeout: 180000,
       maxBuffer: 10 * 1024 * 1024,

@@ -376,6 +376,59 @@ Le rapport doit être complet, structuré, et faire au moins 500 mots. Utilise d
 }
 
 /**
+ * Generate a LinkedIn post from a NotebookLM source
+ * Uses the post style guide to produce an engaging, human-sounding post
+ */
+export async function generateLinkedInPost(notebookId, sourceId, conversationId = null) {
+  console.log('[notebooklm-http] generating LinkedIn post...');
+
+  try {
+    const params = {
+      notebook_id: notebookId,
+      source_ids: [sourceId],
+      query: `Tu es un expert en veille IA et technologie qui partage ses découvertes sur LinkedIn en français.
+
+À partir de ce contenu, rédige UN post LinkedIn engageant qui respecte EXACTEMENT ce style :
+
+STYLE OBLIGATOIRE :
+- Commence par une accroche courte et percutante (1-2 lignes max) qui interpelle directement
+- Utilise des phrases courtes, percutantes, parfois incomplètes pour le rythme
+- Alterne entre constats, questions rhétoriques et révélations
+- Structure avec des flèches → ou des emojis pour les listes (max 4-5 points)
+- Ton conversationnel, direct, comme si tu parlais à un ami expert
+- Inclus 1-2 données chiffrées concrètes si disponibles dans le contenu
+- Termine par une question ouverte pour engager les commentaires
+- Ajoute 2-3 hashtags pertinents à la fin
+- Longueur : 150-250 mots maximum
+- PAS de titres markdown, PAS de ** gras **, PAS de structure académique
+- PAS de formules génériques comme "Dans un monde où..." ou "À l'ère de..."
+
+EXEMPLES DE BONNES ACCROCHES :
+- "L'entonnoir de conversion e-commerce traditionnel est en train de disparaître."
+- "Ces dernières semaines, une question est revenue en call découverte."
+- "Pendant que tout le monde court après les nouveaux projets..."
+
+Rédige uniquement le post, sans introduction ni commentaire.`,
+      conversation_id: conversationId || undefined,
+    };
+
+    const result = await callMCPTool('notebook_query', params);
+
+    if (result.status === 'success') {
+      return {
+        post: result.answer,
+        conversation_id: result.conversation_id,
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.error('[notebooklm-http] error generating LinkedIn post:', err.message);
+    return null;
+  }
+}
+
+/**
  * Close MCP client connection
  */
 export async function closeMCPClient() {
@@ -598,7 +651,10 @@ export async function waitForStudioArtifact(notebookId, artifactId, maxWaitMs = 
 
     console.log(`[notebooklm-http] artifact ${artifactId} status: ${artifact.status}`);
 
-    if (artifact.status === 'completed') return artifact;
+    if (artifact.status === 'completed') {
+      console.log(`[notebooklm-http] artifact completed:`, JSON.stringify(artifact));
+      return artifact;
+    }
     if (artifact.status === 'failed') throw new Error('Artifact generation failed');
   }
 
@@ -606,13 +662,51 @@ export async function waitForStudioArtifact(notebookId, artifactId, maxWaitMs = 
 }
 
 /**
- * Download a file from URL into a Buffer
+ * Load Google auth cookies from notebooklm-mcp auth file
+ */
+async function loadAuthCookies() {
+  try {
+    const { readFile } = await import('fs/promises');
+    const authPath = `${process.env.HOME || '/home/bertrand'}/.notebooklm-mcp/auth.json`;
+    const raw = await readFile(authPath, 'utf-8');
+    const auth = JSON.parse(raw);
+    return auth.cookies || null;
+  } catch (e) {
+    console.warn('[notebooklm-http] could not load auth cookies:', e.message);
+    return null;
+  }
+}
+
+/**
+ * Download a file from URL into a Buffer (uses Google auth cookies for lh3.googleusercontent.com)
  */
 export async function downloadFile(url) {
   console.log(`[notebooklm-http] downloading file: ${url.substring(0, 80)}...`);
-  const response = await fetch(url, { redirect: 'follow' });
+
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+    'Referer': 'https://notebooklm.google.com/',
+  };
+
+  // For Google-hosted images, inject auth cookies
+  if (url.includes('googleusercontent.com') || url.includes('google.com')) {
+    const cookies = await loadAuthCookies();
+    if (cookies) {
+      headers['Cookie'] = cookies;
+    }
+  }
+
+  const response = await fetch(url, { redirect: 'follow', headers });
   if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+
   const contentType = response.headers.get('content-type') || 'application/octet-stream';
+
+  // Detect HTML response (auth redirect) and fail fast
+  if (contentType.includes('text/html')) {
+    throw new Error(`Download returned HTML instead of image — auth cookies may be expired (content-type: ${contentType})`);
+  }
+
   const buffer = Buffer.from(await response.arrayBuffer());
   console.log(`[notebooklm-http] downloaded ${buffer.length} bytes (${contentType})`);
   return { buffer, contentType };

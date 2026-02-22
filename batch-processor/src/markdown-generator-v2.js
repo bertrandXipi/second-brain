@@ -3,7 +3,7 @@
  * Generates markdown with AI-generated summary from NotebookLM
  */
 
-export function generateMarkdownV2(item, notebookResult, sourceDescription, sourceUrl, fetchResult = {}) {
+export function generateMarkdownV2(item, notebookResult, sourceDescription, sourceUrl, fetchResult = {}, linkedInPost = null) {
   const now = new Date().toISOString();
   const datePrefix = now.slice(0, 10);
   const title = fetchResult.title || item.title || 'Sans titre';
@@ -51,6 +51,15 @@ ${yamlStringify(frontmatter)}---
     md += `## Résumé (NotebookLM)
 
 ${sourceDescription.summary}
+
+`;
+  }
+
+  // LinkedIn Post
+  if (linkedInPost) {
+    md += `## 💼 Post LinkedIn
+
+${linkedInPost}
 
 `;
   }

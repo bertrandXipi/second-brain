@@ -21,12 +21,14 @@ const FICHES_PATH = 'fiches';
 let notebookLMAvailable = false;
 let addToNotebookLM = null;
 let getDetailedAnalysis = null;
+let generateLinkedInPost = null;
 
 // Try to load NotebookLM HTTP client
 try {
   const module = await import('../../batch-processor/src/notebooklm-http.js');
   addToNotebookLM = module.addToNotebookLM;
   getDetailedAnalysis = module.getDetailedAnalysis;
+  generateLinkedInPost = module.generateLinkedInPost;
   notebookLMAvailable = true;
   console.log('[processor] NotebookLM HTTP client available');
 } catch (err) {
@@ -86,6 +88,23 @@ export async function processItem(item, git, discordMessage = null) {
     if (sourceDescription) {
       console.log(`[processor] got analysis (${sourceDescription.summary?.length || 0} chars, ${sourceDescription.keywords?.length || 0} keywords)`);
     }
+
+    // Generate LinkedIn post
+    console.log('[processor] generating LinkedIn post...');
+    let linkedInPost = null;
+    try {
+      const postResult = await generateLinkedInPost(
+        notebookResult.notebook_id,
+        notebookResult.source_id,
+        sourceDescription?.conversation_id || null
+      );
+      linkedInPost = postResult?.post || null;
+      if (linkedInPost) {
+        console.log(`[processor] LinkedIn post generated (${linkedInPost.length} chars)`);
+      }
+    } catch (postErr) {
+      console.warn('[processor] LinkedIn post generation failed:', postErr.message);
+    }
     
     // Use NotebookLM title if we don't have one
     const title = notebookResult.title || item.title || 'Sans titre';
@@ -104,7 +123,8 @@ export async function processItem(item, git, discordMessage = null) {
       notebookResult,
       sourceDescription,
       item.url,
-      fetchResult
+      fetchResult,
+      linkedInPost
     );
 
     // 4. Write fiche to Git

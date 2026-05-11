@@ -29,6 +29,11 @@ export async function initRepo() {
   }
 
   git = simpleGit(WORKDIR);
+
+  // Always ensure the remote URL carries the PAT, even if the repo was
+  // already cloned without one (or the token was rotated).
+  await git.remote(['set-url', 'origin', repoUrl]);
+
   await git.addConfig('user.name', config.github.authorName);
   await git.addConfig('user.email', config.github.authorEmail);
   console.log('[git] repo ready');

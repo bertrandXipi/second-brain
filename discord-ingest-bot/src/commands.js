@@ -6,7 +6,7 @@ import { SlashCommandBuilder, REST, Routes } from 'discord.js';
 import { readdir, readFile } from 'fs/promises';
 import path from 'path';
 import { config } from './config.js';
-import { wrap as safeWrap } from './safeHandler.js';
+import { wrap as safeWrap, wrapComponent } from './safeHandler.js';
 import { getHealth } from './health.js';
 
 // Lazy NotebookLM/LinkedIn loaders — a heavy/optional module that fails to load
@@ -888,20 +888,20 @@ async function handleChoiceNotebookCommand(interaction) {
 }
 
 /**
- * Handle notebook selection from select menu — wrapped by safeWrap so a throw
- * never produces "L'application ne répond plus".
+ * Handle notebook selection from select menu — wrapped by wrapComponent
+ * (deferUpdate ack, ephemeral follow-ups, exceptions caught).
  */
-export const handleNotebookSelection = safeWrap('notebook_select', async (interaction) => {
+export const handleNotebookSelection = wrapComponent('notebook_select', async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
   if (interaction.customId !== 'notebook_select') return;
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferUpdate();
 
   // Ensure NotebookLM client is loaded before we use it (the select menu
   // may fire long after /choice_notebook if the user lets it sit).
   await ensureNotebookLMClient();
   if (!notebookLMClient) {
-    await interaction.editReply('❌ NotebookLM client non disponible.');
+    await interaction.followUp({ content: '❌ NotebookLM client non disponible.', ephemeral: true });
     return;
   }
 
@@ -910,7 +910,7 @@ export const handleNotebookSelection = safeWrap('notebook_select', async (intera
   const selected = notebooks.find(nb => nb.id === notebookId);
 
   if (!selected) {
-    await interaction.editReply('❌ Notebook non trouvé');
+    await interaction.followUp({ content: '❌ Notebook non trouvé', ephemeral: true });
     return;
   }
 
@@ -922,12 +922,13 @@ export const handleNotebookSelection = safeWrap('notebook_select', async (intera
     interaction.user.id
   );
 
-  await interaction.editReply({
-    content: `✅ **Notebook sélectionné :**\n\n📖 ${selected.title}\n📊 ${selected.source_count || 0} sources\n\n*Toutes les futures sources iront dans ce notebook.*`
+  await interaction.followUp({
+    content: `✅ **Notebook sélectionné :**\n\n📖 ${selected.title}\n📊 ${selected.source_count || 0} sources\n\n*Toutes les futures sources iront dans ce notebook.*`,
+    ephemeral: true,
   });
 
   console.log(`[commands] notebook selected by ${interaction.user.username}: ${selected.title}`);
-}, { ephemeral: true });
+});
 
 /**
  * Handle /reset_notebook command - Reset to default monthly notebook
@@ -1181,19 +1182,19 @@ async function handleThreadCommand(interaction) {
 }
 
 /**
- * Handle LinkedIn publish button click — wrapped by safeWrap.
+ * Handle LinkedIn publish button click — wrapped by wrapComponent.
  */
-export const handleLinkedInPublish = safeWrap('linkedin_publish', async (interaction) => {
+export const handleLinkedInPublish = wrapComponent('linkedin_publish', async (interaction) => {
   if (!interaction.isButton()) return;
   if (!interaction.customId.startsWith('linkedin_publish_')) return;
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferUpdate();
 
   const threadId = interaction.customId.replace('linkedin_publish_', '');
   const pending = pendingThreads.get(threadId);
 
   if (!pending) {
-    await interaction.editReply('❌ Thread expiré. Régénère avec `/thread`.');
+    await interaction.followUp({ content: '❌ Thread expiré. Régénère avec `/thread`.', ephemeral: true });
     return;
   }
 
@@ -1203,7 +1204,7 @@ export const handleLinkedInPublish = safeWrap('linkedin_publish', async (interac
 
   let result;
   if (pending.media?.type === 'infographic' && pending.media.imageBuffer) {
-    await interaction.editReply('⏳ *Upload de l\'image sur LinkedIn...*');
+    await interaction.followUp({ content: '⏳ *Upload de l\'image sur LinkedIn...*', ephemeral: true });
     const assetUrn = await uploadImage(pending.media.imageBuffer, pending.media.contentType || 'image/png');
     result = await publishWithImage(pending.content, assetUrn);
   } else {
@@ -1213,12 +1214,12 @@ export const handleLinkedInPublish = safeWrap('linkedin_publish', async (interac
   pendingThreads.delete(threadId);
 
   if (result.success) {
-    await interaction.editReply(`✅ **Publié sur LinkedIn !**\n\n🔗 ${result.postUrl}`);
+    await interaction.followUp({ content: `✅ **Publié sur LinkedIn !**\n\n🔗 ${result.postUrl}`, ephemeral: true });
     console.log(`[commands] LinkedIn post published: ${result.postId}`);
   } else {
-    await interaction.editReply('❌ Échec de la publication.');
+    await interaction.followUp({ content: '❌ Échec de la publication.', ephemeral: true });
   }
-}, { ephemeral: true });
+});
 
 /**
  * Resolve source IDs based on filter type

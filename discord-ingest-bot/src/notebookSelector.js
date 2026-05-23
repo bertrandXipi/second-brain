@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_FILE = path.join(__dirname, '..', 'notebook-config.json');
+const CONFIG_FILE = process.env.NOTEBOOK_CONFIG_PATH || path.join(__dirname, '..', 'notebook-config.json');
 
 /**
  * Lire la config actuelle

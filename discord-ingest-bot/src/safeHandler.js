@@ -50,3 +50,47 @@ export function wrap(name, handler, opts = {}) {
     }
   };
 }
+
+/**
+ * Safe wrapper for Discord component interactions (buttons, select menus).
+ *
+ * Unlike `wrap` (slash commands), this uses `deferUpdate()` which silently
+ * acknowledges the interaction without showing "Bot is thinking…". The
+ * handler should use `interaction.followUp({ ephemeral: true })` for any
+ * user-visible reply.
+ */
+export function wrapComponent(name, handler) {
+  return async function safeWrappedComponent(interaction) {
+    markEvent(`component:${name}`);
+    const start = Date.now();
+
+    const ackTimer = setTimeout(async () => {
+      try {
+        if (!interaction.deferred && !interaction.replied) {
+          await interaction.deferUpdate();
+          console.warn(`[safe] forced deferUpdate for ${name} after ${Date.now() - start}ms`);
+        }
+      } catch (e) {
+        console.error(`[safe] forced deferUpdate failed for ${name}:`, e.message);
+      }
+    }, ACK_DEADLINE_MS);
+
+    try {
+      await handler(interaction);
+    } catch (err) {
+      console.error(`[safe] ${name} threw:`, err?.stack || err?.message || err);
+      const msg = `❌ Erreur dans ${name}: ${err?.message || 'unknown'}`;
+      try {
+        if (interaction.deferred || interaction.replied) {
+          await interaction.followUp({ content: msg, ephemeral: true });
+        } else {
+          await interaction.reply({ content: msg, ephemeral: true });
+        }
+      } catch (replyErr) {
+        console.error(`[safe] failed to deliver error reply for ${name}:`, replyErr.message);
+      }
+    } finally {
+      clearTimeout(ackTimer);
+    }
+  };
+}

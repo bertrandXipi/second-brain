@@ -6,26 +6,55 @@ import { SlashCommandBuilder, REST, Routes } from 'discord.js';
 import { readdir, readFile } from 'fs/promises';
 import path from 'path';
 import { config } from './config.js';
+import { wrap as safeWrap } from './safeHandler.js';
+import { getHealth } from './health.js';
 
-// Import NotebookLM client if available
+// Lazy NotebookLM/LinkedIn loaders — a heavy/optional module that fails to load
+// must NOT crash boot or kill the gateway.
+let _notebookLMClient;
+async function ensureNotebookLMClient() {
+  if (_notebookLMClient !== undefined) return _notebookLMClient;
+  try {
+    const m = await import('../../batch-processor/src/notebooklm-http.js');
+    _notebookLMClient = {
+      queryNotebook: m.queryNotebook,
+      getNotebookId: m.getNotebookId,
+      getOrCreateMonthlyNotebook: m.getOrCreateMonthlyNotebook,
+      createPodcast: m.createPodcast,
+      getPodcastStatus: m.getPodcastStatus,
+      downloadAudio: m.downloadAudio,
+      listNotebooks: m.listNotebooks,
+    };
+    notebookLMClient = _notebookLMClient;
+    console.log('[commands] NotebookLM client loaded');
+  } catch (err) {
+    _notebookLMClient = null;
+    notebookLMClient = null;
+    console.error('[commands] NotebookLM client load failed:', err.message);
+  }
+  return _notebookLMClient;
+}
+
+let _linkedInAvailable;
+async function ensureLinkedInAvailable() {
+  if (_linkedInAvailable !== undefined) return _linkedInAvailable;
+  try {
+    const { isLinkedInConfigured } = await import('./linkedin-api.js');
+    _linkedInAvailable = await isLinkedInConfigured();
+    linkedInAvailable = _linkedInAvailable;
+    console.log(`[commands] LinkedIn client: ${_linkedInAvailable ? 'configured' : 'not configured'}`);
+  } catch (err) {
+    _linkedInAvailable = false;
+    linkedInAvailable = false;
+    console.error('[commands] LinkedIn client load failed:', err.message);
+  }
+  return _linkedInAvailable;
+}
+
+// Shared snapshots kept up to date by the ensure*() helpers above so the existing
+// inline code that reads `notebookLMClient`/`linkedInAvailable` directly keeps working.
 let notebookLMClient = null;
-try {
-  const { queryNotebook, getNotebookId, getOrCreateMonthlyNotebook, createPodcast, getPodcastStatus, downloadAudio, listNotebooks } = await import('../../batch-processor/src/notebooklm-http.js');
-  notebookLMClient = { queryNotebook, getNotebookId, getOrCreateMonthlyNotebook, createPodcast, getPodcastStatus, downloadAudio, listNotebooks };
-  console.log('[commands] NotebookLM client loaded');
-} catch (err) {
-  console.log('[commands] NotebookLM client not available:', err.message);
-}
-
-// Import LinkedIn client if available
 let linkedInAvailable = false;
-try {
-  const { isLinkedInConfigured } = await import('./linkedin-api.js');
-  linkedInAvailable = await isLinkedInConfigured();
-  console.log(`[commands] LinkedIn client: ${linkedInAvailable ? 'configured' : 'not configured'}`);
-} catch (err) {
-  console.log('[commands] LinkedIn client not available:', err.message);
-}
 
 const WORKDIR = './workdir/repo';
 const PROCESSED_PATH = 'mobile-share/processed';
@@ -137,6 +166,10 @@ export const commands = [
   new SlashCommandBuilder()
     .setName('info')
     .setDescription('Liste toutes les commandes disponibles'),
+
+  new SlashCommandBuilder()
+    .setName('health')
+    .setDescription('État de santé du bot (gateway, mémoire, uptime)'),
   
   new SlashCommandBuilder()
     .setName('ask')
@@ -726,65 +759,63 @@ function formatProcessedItem(item, ficheContent) {
   return reply;
 }
 
-/**
- * Main command dispatcher - routes to appropriate handler
- */
+// Dispatch table — every handler runs through safeWrap so:
+//  - deferReply is forced before Discord's 3s timeout
+//  - exceptions always produce a user-visible reply (no more "Application ne répond plus")
+const COMMAND_HANDLERS = {
+  last: safeWrap('last', handleLastCommand),
+  stats: safeWrap('stats', handleStatsCommand),
+  notebooks: safeWrap('notebooks', async (i) => { await ensureNotebookLMClient(); return handleNotebooksCommand(i); }),
+  insights: safeWrap('insights', async (i) => { await ensureNotebookLMClient(); return handleInsightsCommand(i); }),
+  podcast: safeWrap('podcast', async (i) => { await ensureNotebookLMClient(); return handlePodcastCommand(i); }),
+  thread: safeWrap('thread', async (i) => { await ensureNotebookLMClient(); await ensureLinkedInAvailable(); return handleThreadCommand(i); }),
+  devlog: safeWrap('devlog', async (i) => { await ensureNotebookLMClient(); await ensureLinkedInAvailable(); return handleDevlogCommand(i); }),
+  choice_notebook: safeWrap('choice_notebook', async (i) => { await ensureNotebookLMClient(); return handleChoiceNotebookCommand(i); }),
+  reset_notebook: safeWrap('reset_notebook', handleResetNotebookCommand),
+  status: safeWrap('status', handleStatusCommand),
+  info: safeWrap('info', handleInfoCommand),
+  ask: safeWrap('ask', async (i) => { await ensureNotebookLMClient(); return handleAskCommand(i); }),
+  health: safeWrap('health', handleHealthCommand),
+};
+
 export async function handleCommand(interaction) {
   if (!interaction.isChatInputCommand()) return;
-  
   const commandName = interaction.commandName;
-  
   console.log(`[commands] handling command: /${commandName}`);
-  
-  try {
-    switch (commandName) {
-      case 'last':
-        await handleLastCommand(interaction);
-        break;
-      case 'stats':
-        await handleStatsCommand(interaction);
-        break;
-      case 'notebooks':
-        await handleNotebooksCommand(interaction);
-        break;
-      case 'insights':
-        await handleInsightsCommand(interaction);
-        break;
-      case 'podcast':
-        await handlePodcastCommand(interaction);
-        break;
-      case 'thread':
-        await handleThreadCommand(interaction);
-        break;
-      case 'devlog':
-        await handleDevlogCommand(interaction);
-        break;
-      case 'choice_notebook':
-        await handleChoiceNotebookCommand(interaction);
-        break;
-      case 'reset_notebook':
-        await handleResetNotebookCommand(interaction);
-        break;
-      case 'status':
-        await handleStatusCommand(interaction);
-        break;
-      case 'info':
-        await handleInfoCommand(interaction);
-        break;
-      case 'ask':
-        await handleAskCommand(interaction);
-        break;
-      default:
-        await interaction.reply(`❌ Commande inconnue: /${commandName}`);
-    }
-  } catch (err) {
-    console.error(`[commands] error handling /${commandName}:`, err.message);
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply(`❌ Erreur: ${err.message}`);
-    } else if (interaction.deferred) {
-      await interaction.editReply(`❌ Erreur: ${err.message}`);
-    }
+
+  const handler = COMMAND_HANDLERS[commandName];
+  if (!handler) {
+    try {
+      await interaction.reply({ content: `❌ Commande inconnue: /${commandName}`, ephemeral: true });
+    } catch {}
+    return;
   }
+  await handler(interaction);
+}
+
+/**
+ * Handle /health command — surfaces the watchdog state inside Discord.
+ */
+async function handleHealthCommand(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+  const h = getHealth();
+  const wsLabel = { 0: 'READY', 1: 'CONNECTING', 2: 'RECONNECTING', 3: 'IDLE', 4: 'NEARLY', 5: 'DISCONNECTED', 6: 'WAITING_FOR_GUILDS', 7: 'IDENTIFYING', 8: 'RESUMING' }[h.ws_status] || `unknown(${h.ws_status})`;
+  const uptimeMin = Math.round(h.uptime_ms / 60000);
+  const lastEventSec = Math.round(h.last_event_age_ms / 1000);
+  const notebookLM = await ensureNotebookLMClient();
+  const linkedIn = await ensureLinkedInAvailable();
+
+  let reply = `🩺 **État du bot**\n\n`;
+  reply += h.healthy ? `✅ **Healthy**\n` : `❌ **Unhealthy**\n`;
+  reply += `\n**Gateway:** ${wsLabel}\n`;
+  reply += `**Ping WS:** ${h.ws_ping_ms}ms\n`;
+  reply += `**Dernier événement:** ${h.last_event_kind} (il y a ${lastEventSec}s)\n`;
+  reply += `**Uptime:** ${uptimeMin} min\n`;
+  reply += `**RSS / Heap:** ${h.rss_mb}MB / ${h.heap_mb}MB\n`;
+  reply += `\n**Modules:**\n`;
+  reply += `• NotebookLM: ${notebookLM ? '✅' : '❌'}\n`;
+  reply += `• LinkedIn: ${linkedIn ? '✅' : '❌'}\n`;
+  await interaction.editReply(reply);
 }
 
 /**
@@ -857,47 +888,46 @@ async function handleChoiceNotebookCommand(interaction) {
 }
 
 /**
- * Handle notebook selection from select menu
+ * Handle notebook selection from select menu — wrapped by safeWrap so a throw
+ * never produces "L'application ne répond plus".
  */
-export async function handleNotebookSelection(interaction) {
+export const handleNotebookSelection = safeWrap('notebook_select', async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
   if (interaction.customId !== 'notebook_select') return;
-  
+
   await interaction.deferReply({ ephemeral: true });
-  
-  try {
-    const notebookId = interaction.values[0];
-    
-    // Get notebook details
-    const notebooks = await notebookLMClient.listNotebooks(200);
-    const selected = notebooks.find(nb => nb.id === notebookId);
-    
-    if (!selected) {
-      await interaction.editReply('❌ Notebook non trouvé');
-      return;
-    }
-    
-    // Save selection
-    const { setSelectedNotebook } = await import('./notebookSelector.js');
-    await setSelectedNotebook(
-      notebookId,
-      selected.title,
-      selected.url,
-      interaction.user.id
-    );
-    
-    // Confirm to user
-    await interaction.editReply({
-      content: `✅ **Notebook sélectionné :**\n\n📖 ${selected.title}\n📊 ${selected.source_count || 0} sources\n\n*Toutes les futures sources iront dans ce notebook.*`
-    });
-    
-    console.log(`[commands] notebook selected by ${interaction.user.username}: ${selected.title}`);
-    
-  } catch (err) {
-    console.error('[commands] notebook selection error:', err.message);
-    await interaction.editReply(`❌ Erreur: ${err.message}`);
+
+  // Ensure NotebookLM client is loaded before we use it (the select menu
+  // may fire long after /choice_notebook if the user lets it sit).
+  await ensureNotebookLMClient();
+  if (!notebookLMClient) {
+    await interaction.editReply('❌ NotebookLM client non disponible.');
+    return;
   }
-}
+
+  const notebookId = interaction.values[0];
+  const notebooks = await notebookLMClient.listNotebooks(200);
+  const selected = notebooks.find(nb => nb.id === notebookId);
+
+  if (!selected) {
+    await interaction.editReply('❌ Notebook non trouvé');
+    return;
+  }
+
+  const { setSelectedNotebook } = await import('./notebookSelector.js');
+  await setSelectedNotebook(
+    notebookId,
+    selected.title,
+    selected.url,
+    interaction.user.id
+  );
+
+  await interaction.editReply({
+    content: `✅ **Notebook sélectionné :**\n\n📖 ${selected.title}\n📊 ${selected.source_count || 0} sources\n\n*Toutes les futures sources iront dans ce notebook.*`
+  });
+
+  console.log(`[commands] notebook selected by ${interaction.user.username}: ${selected.title}`);
+}, { ephemeral: true });
 
 /**
  * Handle /reset_notebook command - Reset to default monthly notebook
@@ -1039,15 +1069,17 @@ async function handleThreadCommand(interaction) {
     const ton = interaction.options.getString('ton') || 'expert';
     const contexte = interaction.options.getString('contexte') || '';
     const funnel = interaction.options.getString('funnel') || 'mofu';
+    const mediaType = interaction.options.getString('media') || 'none';
     
     const platformeLabel = { twitter: 'Twitter/X', linkedin: 'LinkedIn', both: 'Twitter/X + LinkedIn' };
     const sourcesLabel = { all: 'Toutes', week: 'Cette semaine', today: "Aujourd'hui", last: 'Dernière source' };
     const tonLabel = { expert: '🎓 Expert', provocateur: '🔥 Provocateur', storytelling: '📖 Storytelling', pedagogue: '💡 Pédagogue' };
     const funnelLabel = { tofu: '🌱 TOFU', mofu: '🔥 MOFU', bofu: '🎯 BOFU' };
+    const mediaLabel = mediaType === 'infographic' ? ' + 🖼️ infographie' : mediaType === 'slides' ? ' + 📊 slides' : '';
+
+    await interaction.editReply(`🧵 *Génération du thread en cours...*\n\n**Sujet :** ${sujet}\n**Plateforme :** ${platformeLabel[plateforme]}\n**Sources :** ${sourcesLabel[sourcesFilter]}\n**Ton :** ${tonLabel[ton]}\n**Funnel :** ${funnelLabel[funnel]}${mediaLabel ? `\n**Média :** ${mediaLabel}` : ''}`);
     
-    await interaction.editReply(`🧵 *Génération du thread en cours...*\n\n**Sujet :** ${sujet}\n**Plateforme :** ${platformeLabel[plateforme]}\n**Sources :** ${sourcesLabel[sourcesFilter]}\n**Ton :** ${tonLabel[ton]}\n**Funnel :** ${funnelLabel[funnel]}`);
-    
-    console.log(`[commands] /thread sujet="${sujet}" plateforme=${plateforme} sources=${sourcesFilter} ton=${ton} funnel=${funnel}`);
+    console.log(`[commands] /thread sujet="${sujet}" plateforme=${plateforme} sources=${sourcesFilter} ton=${ton} funnel=${funnel} media=${mediaType}`);
     
     const { getOrCreateMonthlyNotebook } = await import('../../batch-processor/src/notebooklm-http.js');
     const notebookId = await getOrCreateMonthlyNotebook();
@@ -1058,8 +1090,17 @@ async function handleThreadCommand(interaction) {
     // Build prompt
     const prompt = buildThreadPrompt(sujet, plateforme, ton, contexte, funnel);
     
-    // Query NotebookLM
-    const result = await notebookLMClient.queryNotebook(notebookId, prompt, sourceIds);
+    // Query NotebookLM + generate media in parallel
+    const [postResult, mediaResult] = await Promise.allSettled([
+      notebookLMClient.queryNotebook(notebookId, prompt, sourceIds),
+      mediaType !== 'none' ? generateMedia(notebookId, mediaType, sujet) : Promise.resolve(null),
+    ]);
+
+    const result = postResult.status === 'fulfilled' ? postResult.value : null;
+    const media = mediaResult.status === 'fulfilled' ? mediaResult.value : null;
+    if (mediaResult.status === 'rejected') {
+      console.error('[commands] /thread media generation failed:', mediaResult.reason?.message);
+    }
     
     if (!result || !result.answer) {
       await interaction.editReply('❌ Pas de réponse de NotebookLM. Réessayez plus tard.');
@@ -1078,6 +1119,10 @@ async function handleThreadCommand(interaction) {
     // Build response
     let response = `🧵 **Thread : ${sujet}**\n📱 *${platformeLabel[plateforme]}* • ${tonLabel[ton]}\n\n${cleanAnswer}`;
     
+    if (media?.type === 'slides' && media.slidesUrl) {
+      response += `\n\n📊 [Voir les slides](${media.slidesUrl})`;
+    }
+
     response += `\n\n---\n`;
     const sourceInfo = sourceIds ? `${sourceIds.length} sources sélectionnées` : `${result.sourceCount || 'toutes les'} sources`;
     response += `*Généré à partir de ${sourceInfo}*`;
@@ -1088,7 +1133,7 @@ async function handleThreadCommand(interaction) {
     
     if (linkedInContent && linkedInAvailable) {
       const threadId = `thread_${Date.now()}`;
-      pendingThreads.set(threadId, { content: linkedInContent, sujet, createdAt: Date.now() });
+      pendingThreads.set(threadId, { content: linkedInContent, sujet, createdAt: Date.now(), media });
       
       // Clean old entries (> 1h)
       for (const [key, val] of pendingThreads) {
@@ -1098,22 +1143,35 @@ async function handleThreadCommand(interaction) {
       buttons.push(
         new ButtonBuilder()
           .setCustomId(`linkedin_publish_${threadId}`)
-          .setLabel('📤 Publier sur LinkedIn')
+          .setLabel(media?.type === 'infographic' ? '📤 Publier sur LinkedIn (avec image)' : '📤 Publier sur LinkedIn')
           .setStyle(ButtonStyle.Primary)
       );
     } else if (linkedInContent && !linkedInAvailable) {
       response += ` • ⚠️ *LinkedIn non configuré*`;
     }
     
-    if (buttons.length > 0) {
+    const chunks = splitIntoChunks(response);
+
+    // If we have an infographic, attach it to the Discord message
+    if (media?.type === 'infographic' && media.imageBuffer) {
+      const { AttachmentBuilder } = await import('discord.js');
+      const attachment = new AttachmentBuilder(media.imageBuffer, { name: 'infographie.png' });
+      const replyOptions = { content: chunks[0], files: [attachment] };
+      if (buttons.length > 0) replyOptions.components = [new ActionRowBuilder().addComponents(...buttons)];
+      await interaction.editReply(replyOptions);
+    } else if (buttons.length > 0) {
       const row = new ActionRowBuilder().addComponents(...buttons);
-      const chunks = splitIntoChunks(response);
       await interaction.editReply({ content: chunks[0], components: [row] });
-      for (let i = 1; i < chunks.length; i++) {
-        await interaction.followUp(`*(suite ${i + 1}/${chunks.length})*\n\n${chunks[i]}`);
-      }
     } else {
-      await sendLongReply(interaction, response, true);
+      await interaction.editReply(chunks[0]);
+    }
+
+    for (let i = 1; i < chunks.length; i++) {
+      await interaction.followUp(`*(suite ${i + 1}/${chunks.length})*\n\n${chunks[i]}`);
+    }
+
+    if (mediaResult.status === 'rejected') {
+      await interaction.followUp(`⚠️ *La génération du média a échoué : ${mediaResult.reason?.message}. Le post texte est prêt.*`);
     }
     
   } catch (err) {
@@ -1123,51 +1181,44 @@ async function handleThreadCommand(interaction) {
 }
 
 /**
- * Handle LinkedIn publish button click
+ * Handle LinkedIn publish button click — wrapped by safeWrap.
  */
-export async function handleLinkedInPublish(interaction) {
+export const handleLinkedInPublish = safeWrap('linkedin_publish', async (interaction) => {
   if (!interaction.isButton()) return;
   if (!interaction.customId.startsWith('linkedin_publish_')) return;
-  
-  await interaction.deferReply({ ephemeral: true });
-  
-  try {
-    const threadId = interaction.customId.replace('linkedin_publish_', '');
-    const pending = pendingThreads.get(threadId);
-    
-    if (!pending) {
-      await interaction.editReply('❌ Thread expiré. Régénère avec `/thread`.');
-      return;
-    }
-    
-    console.log(`[commands] publishing to LinkedIn: "${pending.sujet}"`);
-    
-    const { publishToLinkedIn, publishWithImage, uploadImage } = await import('./linkedin-api.js');
 
-    let result;
-    if (pending.media?.type === 'infographic' && pending.media.imageBuffer) {
-      await interaction.editReply('⏳ *Upload de l\'image sur LinkedIn...*');
-      const assetUrn = await uploadImage(pending.media.imageBuffer, pending.media.contentType || 'image/png');
-      result = await publishWithImage(pending.content, assetUrn);
-    } else {
-      result = await publishToLinkedIn(pending.content);
-    }
-    
-    // Remove from pending
-    pendingThreads.delete(threadId);
-    
-    if (result.success) {
-      await interaction.editReply(`✅ **Publié sur LinkedIn !**\n\n🔗 ${result.postUrl}`);
-      console.log(`[commands] LinkedIn post published: ${result.postId}`);
-    } else {
-      await interaction.editReply('❌ Échec de la publication.');
-    }
-    
-  } catch (err) {
-    console.error('[commands] LinkedIn publish error:', err.message);
-    await interaction.editReply(`❌ Erreur: ${err.message}`);
+  await interaction.deferReply({ ephemeral: true });
+
+  const threadId = interaction.customId.replace('linkedin_publish_', '');
+  const pending = pendingThreads.get(threadId);
+
+  if (!pending) {
+    await interaction.editReply('❌ Thread expiré. Régénère avec `/thread`.');
+    return;
   }
-}
+
+  console.log(`[commands] publishing to LinkedIn: "${pending.sujet}"`);
+
+  const { publishToLinkedIn, publishWithImage, uploadImage } = await import('./linkedin-api.js');
+
+  let result;
+  if (pending.media?.type === 'infographic' && pending.media.imageBuffer) {
+    await interaction.editReply('⏳ *Upload de l\'image sur LinkedIn...*');
+    const assetUrn = await uploadImage(pending.media.imageBuffer, pending.media.contentType || 'image/png');
+    result = await publishWithImage(pending.content, assetUrn);
+  } else {
+    result = await publishToLinkedIn(pending.content);
+  }
+
+  pendingThreads.delete(threadId);
+
+  if (result.success) {
+    await interaction.editReply(`✅ **Publié sur LinkedIn !**\n\n🔗 ${result.postUrl}`);
+    console.log(`[commands] LinkedIn post published: ${result.postId}`);
+  } else {
+    await interaction.editReply('❌ Échec de la publication.');
+  }
+}, { ephemeral: true });
 
 /**
  * Resolve source IDs based on filter type
@@ -1374,8 +1425,8 @@ async function generateMedia(notebookId, mediaType, focus = '') {
     const { artifact_id } = await createInfographic(notebookId, { focus, language: 'fr' });
     console.log(`[commands] infographic artifact started: ${artifact_id}`);
     const artifact = await waitForStudioArtifact(notebookId, artifact_id);
-    const imageUrl = artifact.image_url || artifact.url;
-    if (!imageUrl) throw new Error('No image URL in completed infographic artifact');
+    const imageUrl = artifact.infographic_url || artifact.image_url || artifact.url;
+    if (!imageUrl) throw new Error(`No image URL in completed infographic artifact: ${JSON.stringify(artifact)}`);
     const { buffer, contentType } = await downloadFile(imageUrl);
     return { type: 'infographic', imageBuffer: buffer, contentType };
   }
@@ -1384,8 +1435,8 @@ async function generateMedia(notebookId, mediaType, focus = '') {
     const { artifact_id } = await createSlideDeck(notebookId, { focus, language: 'fr' });
     console.log(`[commands] slides artifact started: ${artifact_id}`);
     const artifact = await waitForStudioArtifact(notebookId, artifact_id);
-    const slidesUrl = artifact.slides_url || artifact.url || artifact.drive_url;
-    if (!slidesUrl) throw new Error('No slides URL in completed artifact');
+    const slidesUrl = artifact.slide_deck_url || artifact.slides_url || artifact.url || artifact.drive_url;
+    if (!slidesUrl) throw new Error(`No slides URL in completed artifact: ${JSON.stringify(artifact)}`);
     return { type: 'slides', slidesUrl };
   }
 

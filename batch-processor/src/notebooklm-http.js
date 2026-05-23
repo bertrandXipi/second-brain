@@ -414,14 +414,30 @@ Rédige uniquement le post, sans introduction ni commentaire.`,
 
     const result = await callMCPTool('notebook_query', params);
 
-    if (result.status === 'success') {
-      return {
-        post: result.answer,
-        conversation_id: result.conversation_id,
-      };
+    if (result.status !== 'success' || !result.answer) {
+      return null;
     }
 
-    return null;
+    // Reject NotebookLM UI scrape artifacts — sometimes the MCP returns
+    // partial loading text instead of the actual answer. Better to omit
+    // the post entirely than to commit "Chargement..." into the fiche.
+    const post = result.answer.trim();
+    const lower = post.toLowerCase();
+    const degraded =
+      post.length < 200 ||
+      lower.includes('chargement de votre document') ||
+      lower.includes('loading...') ||
+      lower.includes('chargement...') ||
+      /\bloading\b/i.test(post.slice(-80)); // trailing "Loading" near the end
+    if (degraded) {
+      console.warn(`[notebooklm-http] LinkedIn post rejected (degraded, ${post.length} chars)`);
+      return null;
+    }
+
+    return {
+      post,
+      conversation_id: result.conversation_id,
+    };
   } catch (err) {
     console.error('[notebooklm-http] error generating LinkedIn post:', err.message);
     return null;

@@ -4,10 +4,11 @@ import simpleGit from 'simple-git';
 import { config } from './config.js';
 import { parseMessage } from './parser.js';
 import { normalizeUrl } from './normalize.js';
-import { writeAndPush } from './gitWriter.js';
+import { writeAndPush, gitLock } from './gitWriter.js';
 import { writeSpool, removeSpool } from './spool.js';
 import { processItem } from './processor.js';
 import { registerCommands, handleCommand, handleNotebookSelection, handleLinkedInPublish, setLastProcessed } from './commands.js';
+import { markEvent } from './health.js';
 
 const WORKDIR = './workdir/repo';
 let git = null;
@@ -23,27 +24,51 @@ export function createClient() {
 
   client.once(Events.ClientReady, async (c) => {
     console.log(`[discord] logged in as ${c.user.tag}`);
-    // Initialize git for real-time processing
+    markEvent('clientReady');
     git = simpleGit(WORKDIR);
-    
-    // Register slash commands
     await registerCommands(c.user.id);
   });
 
-  client.on(Events.MessageCreate, handleMessage);
+  client.on(Events.MessageCreate, async (msg) => {
+    markEvent('messageCreate');
+    await handleMessage(msg);
+  });
+
   client.on(Events.InteractionCreate, async (interaction) => {
-    // Handle slash commands
+    markEvent('interactionCreate');
     if (interaction.isChatInputCommand()) {
       await handleCommand(interaction);
-    }
-    // Handle select menu interactions
-    else if (interaction.isStringSelectMenu()) {
+    } else if (interaction.isStringSelectMenu()) {
       await handleNotebookSelection(interaction);
-    }
-    // Handle button interactions (LinkedIn publish)
-    else if (interaction.isButton()) {
+    } else if (interaction.isButton()) {
       await handleLinkedInPublish(interaction);
     }
+  });
+
+  // Gateway lifecycle — keep watchdog informed and surface silent failures.
+  client.on(Events.Error, (err) => {
+    console.error('[discord] client error:', err?.stack || err?.message);
+  });
+  client.on(Events.Warn, (msg) => {
+    console.warn('[discord] warn:', msg);
+  });
+  client.on(Events.ShardError, (err, shardId) => {
+    console.error(`[discord] shard ${shardId} error:`, err?.stack || err?.message);
+  });
+  client.on(Events.ShardDisconnect, (event, shardId) => {
+    console.warn(`[discord] shard ${shardId} disconnected: code=${event?.code} reason=${event?.reason}`);
+  });
+  client.on(Events.ShardReconnecting, (shardId) => {
+    console.log(`[discord] shard ${shardId} reconnecting...`);
+    markEvent('shardReconnecting');
+  });
+  client.on(Events.ShardResume, (shardId) => {
+    console.log(`[discord] shard ${shardId} resumed`);
+    markEvent('shardResume');
+  });
+  client.on(Events.ShardReady, (shardId) => {
+    console.log(`[discord] shard ${shardId} ready`);
+    markEvent('shardReady');
   });
 
   return client;
@@ -69,13 +94,23 @@ async function handleMessage(message) {
 
   // Write to spool first (anti-perte)
   const spoolData = { batchId, items, messageId: message.id };
-  await writeSpool(batchId, spoolData);
 
+  try {
+    await writeSpool(batchId, spoolData);
+  } catch (spoolErr) {
+    console.error('[discord] spool write failed:', spoolErr.message);
+    try { await ackError(message); } catch {}
+    return;
+  }
+
+  // Acquire git lock to prevent concurrent pull/push conflicts
+  const release = await gitLock.acquire();
   try {
     // V2: Process immediately instead of just writing to pending
     console.log('[discord] processing in real-time...');
 
-    // Pull latest first
+    // Abort any stale rebase from a previous crash, then pull latest
+    try { await git.rebase(['--abort']); } catch {}
     await git.pull('origin', config.github.branch, ['--rebase']);
 
     const results = [];
@@ -100,8 +135,10 @@ async function handleMessage(message) {
 
   } catch (err) {
     console.error('[discord] error:', err.message);
-    await ackError(message);
+    try { await ackError(message); } catch {}
     // Keep in spool for retry
+  } finally {
+    release();
   }
 }
 

@@ -13,9 +13,11 @@ log() {
 
 log "=== Starting NotebookLM token refresh ==="
 
-# 1. Re-auth locally (Chrome profile already logged in, should be headless)
+# 1. Re-auth locally
+# - Absolute path: LaunchAgent PATH does not include ~/.local/bin
+# - Port 9223: 9222 is occupied by Antigravity IDE's Chrome instance (which lacks --remote-allow-origins)
 log "Running notebooklm-mcp-auth..."
-if ! notebooklm-mcp-auth >> "$LOG" 2>&1; then
+if ! "$HOME/.local/bin/notebooklm-mcp-auth" --port 9223 >> "$LOG" 2>&1; then
   log "ERROR: notebooklm-mcp-auth failed"
   exit 1
 fi
@@ -31,6 +33,13 @@ fi
 log "Restarting notebooklm-mcp on VM..."
 if ! gcloud compute ssh "$VM" --zone="$ZONE" --command="sudo systemctl restart notebooklm-mcp" >> "$LOG" 2>&1; then
   log "ERROR: Failed to restart notebooklm-mcp"
+  exit 1
+fi
+
+# 4. Restart veille-bot so it picks up the new session
+log "Restarting veille-bot on VM..."
+if ! gcloud compute ssh "$VM" --zone="$ZONE" --command="sudo systemctl restart veille-bot" >> "$LOG" 2>&1; then
+  log "ERROR: Failed to restart veille-bot"
   exit 1
 fi
 

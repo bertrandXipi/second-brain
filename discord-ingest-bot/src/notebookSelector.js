@@ -3,7 +3,7 @@
  * Stockage simple en JSON
  */
 
-import { readFile, writeFile } from 'fs/promises';
+import { readFile, writeFile, unlink } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -62,14 +62,14 @@ export async function getNotebookIdToUse() {
  */
 export async function resetNotebookSelection() {
   try {
-    // Supprimer le fichier de config
-    const fs = await import('fs');
-    fs.promises.unlink(CONFIG_FILE).catch(() => {
-      // Fichier n'existe pas, c'est ok
-    });
+    await unlink(CONFIG_FILE);
     console.log('[notebookSelector] notebook selection reset');
     return true;
   } catch (err) {
+    if (err.code === 'ENOENT') {
+      console.log('[notebookSelector] no config to reset');
+      return true;
+    }
     console.error('[notebookSelector] failed to reset:', err.message);
     throw err;
   }

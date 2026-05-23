@@ -8,7 +8,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/bertrand/second-brain/scripts/auto-refresh-notebooklm.sh</string>
+        <string>/Users/bertrand/Sites/second-brain/scripts/auto-refresh-notebooklm.sh</string>
     </array>
 
     <!-- Run every 10 days at 9:00 AM -->

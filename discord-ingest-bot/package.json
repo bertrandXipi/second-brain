@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "node --test --import ./tests/setup.js 'tests/*.test.js'"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

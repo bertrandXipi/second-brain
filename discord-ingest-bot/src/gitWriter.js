@@ -12,6 +12,19 @@ const RETRY_DELAYS = [2000, 5000, 10000];
 
 let git = null;
 
+// Simple async mutex to serialize git operations and prevent concurrent pull/push conflicts
+let _lockQueue = Promise.resolve();
+export const gitLock = {
+  async acquire() {
+    let release;
+    const wait = new Promise(resolve => { release = resolve; });
+    const prev = _lockQueue;
+    _lockQueue = _lockQueue.then(() => wait);
+    await prev;
+    return release;
+  }
+};
+
 export async function initRepo() {
   if (!existsSync('./workdir')) {
     await mkdir('./workdir', { recursive: true });

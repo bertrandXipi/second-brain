@@ -1420,7 +1420,17 @@ Génère les deux versions complètes, prêtes à copier-coller.`;
  * @returns {{ type, imageBuffer, contentType, slidesUrl } | null}
  */
 async function generateMedia(notebookId, mediaType, focus = '') {
-  const { createInfographic, createSlideDeck, waitForStudioArtifact, downloadFile } = await import('../../batch-processor/src/notebooklm-http.js');
+  let createInfographic, createSlideDeck, waitForStudioArtifact, downloadFile;
+  try {
+    const mod = await import('../../batch-processor/src/notebooklm-http.js');
+    createInfographic = mod.createInfographic;
+    createSlideDeck = mod.createSlideDeck;
+    waitForStudioArtifact = mod.waitForStudioArtifact;
+    downloadFile = mod.downloadFile;
+  } catch (err) {
+    console.warn(`[commands] batch-processor not available, skipping media generation: ${err.message}`);
+    return null;
+  }
 
   if (mediaType === 'infographic') {
     const { artifact_id } = await createInfographic(notebookId, { focus, language: 'fr' });
@@ -1587,6 +1597,16 @@ Post prêt à copier-coller directement dans LinkedIn.`;
     await interaction.editReply(`❌ Erreur: ${err.message}`);
   }
 }
+
+// Exported for tests
+export {
+  splitIntoChunks,
+  extractLinkedInContent,
+  buildThreadPrompt,
+  buildLinkedInPrompt,
+  buildTwitterPrompt,
+  buildBothPrompt,
+};
 
 /**
  * Handle /ask command - Query all sources in active notebook

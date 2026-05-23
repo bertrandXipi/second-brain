@@ -267,6 +267,65 @@ NOTEBOOKLM_MCP_URL=http://127.0.0.1:8000/mcp
 NOTEBOOKLM_NOTEBOOK_ID=xxx  # Optionnel, auto-créé si absent
 ```
 
+### 🔗 LinkedIn (Optionnel)
+
+Pour utiliser les commandes `/thread`, `/devlog` et le bouton "Publier sur LinkedIn", tu dois configurer l'API OAuth2 LinkedIn.
+
+**1. Créer une app LinkedIn**
+
+- Va sur [LinkedIn Developer Portal](https://www.linkedin.com/developers/apps)
+- Crée une app ("Veille Bot" ou similaire)
+- Dans l'onglet "Products", active **Share on LinkedIn** et **Sign In with LinkedIn using OpenID Connect**
+- Dans l'onglet "Auth", note le **Client ID** et **Client Secret**
+
+**2. Configurer les variables d'environnement**
+
+```bash
+LINKEDIN_CLIENT_ID=ton_client_id
+LINKEDIN_CLIENT_SECRET=ton_client_secret
+BOFU_CTA=DM si tu veux qu'on en parle.  # Optionnel — CTA pour les posts BOFU
+```
+
+**3. Obtenir les tokens OAuth2**
+
+Le bot a besoin d'un fichier `.linkedin-tokens.json` contenant `access_token` et `refresh_token`. Deux options :
+
+*Option A — Générer via le LinkedIn OAuth2 Playground (le plus rapide) :*
+- Va sur [LinkedIn OAuth2 Tools](https://www.linkedin.com/developers/tools/oauth)
+- Sélectionne ton app, ajoute les scopes `openid profile email w_member_social w_share`
+- Copie le `access_token` et `refresh_token` dans un fichier `.linkedin-tokens.json` :
+
+```json
+{
+  "access_token": "eyJ...",
+  "refresh_token": "AQ...",
+  "expires_in": 5184000,
+  "updated_at": "2026-05-23T10:00:00.000Z"
+}
+```
+
+*Option B — Script OAuth2 local (à créer) :*
+```bash
+node scripts/linkedin-auth.js
+```
+(Le script lancera un mini-serveur local pour le callback OAuth2 et sauvegardera les tokens automatiquement.)
+
+**4. Déployer les tokens sur le serveur**
+
+```bash
+gcloud compute scp .linkedin-tokens.json \
+  veille-bot:/home/YOUR_USERNAME/second-brain/ \
+  --zone=us-central1-a
+```
+
+**Permissions LinkedIn requises :**
+- `openid` — identité du profil
+- `email` — email du compte
+- `w_member_social` — publication de posts
+- `w_share` — partage de contenu
+
+⚠️ L'app doit être **approuvée par LinkedIn** avant de pouvoir poster en production. En mode développement, seuls les membres ajoutés dans l'onglet "Test users" de l'app peuvent poster.
+
 ## 🎯 Roadmap
 
 Voir [ROADMAP-VEILLE.md](ROADMAP-VEILLE.md) pour les évolutions futures :

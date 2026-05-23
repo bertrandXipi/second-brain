@@ -17,5 +17,8 @@ batch-processor/workdir/
 # Logs
 *.log
 
+# IDE
+*.code-workspace
+
 # OS
 .DS_Store

@@ -12,6 +12,24 @@ const RETRY_DELAYS = [2000, 5000, 10000];
 
 let git = null;
 
+/**
+ * Build a canonical GitHub "blob" URL for a file inside the fiches repo.
+ * Pure helper — repoUrl/branch default to config but can be overridden for tests.
+ *
+ * Input:  'fiches/2026-05/2026-05-23-titre.md'
+ * Output: 'https://github.com/owner/repo/blob/main/fiches/2026-05/2026-05-23-titre.md'
+ */
+export function buildGitHubFileUrl(
+  relativePath,
+  repoUrl = config.github.repoUrl,
+  branch = config.github.branch,
+) {
+  if (!relativePath) return null;
+  const base = String(repoUrl).replace(/\.git$/, '').replace(/\/$/, '');
+  const segments = relativePath.split('/').map(encodeURIComponent).join('/');
+  return `${base}/blob/${branch || 'main'}/${segments}`;
+}
+
 // Simple async mutex to serialize git operations and prevent concurrent pull/push conflicts
 let _lockQueue = Promise.resolve();
 export const gitLock = {

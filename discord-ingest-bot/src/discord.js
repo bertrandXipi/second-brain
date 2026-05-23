@@ -4,7 +4,7 @@ import simpleGit from 'simple-git';
 import { config } from './config.js';
 import { parseMessage } from './parser.js';
 import { normalizeUrl } from './normalize.js';
-import { writeAndPush, gitLock } from './gitWriter.js';
+import { writeAndPush, gitLock, buildGitHubFileUrl } from './gitWriter.js';
 import { writeSpool, removeSpool } from './spool.js';
 import { processItem } from './processor.js';
 import { registerCommands, handleCommand, handleNotebookSelection, handleLinkedInPublish, setLastProcessed } from './commands.js';
@@ -177,20 +177,24 @@ function createPendingItem(url, tags, note, batchId, message) {
 
 async function ackSuccess(message, successCount, failedCount, results) {
   try {
-    const queuedCount = results.filter(r => r.queued).length;
-    const totalUrls = results.length;
-    
-    // Build detailed success message
+    // Build detailed delivery confirmation — one line per item with a
+    // direct GitHub link to the saved fiche so the user can audit immediately.
     let reply = `✅ **Traitement terminé**\n`;
-    
+
     for (const r of results) {
       if (r.success) {
-        reply += `\n📄 [${r.title || 'Fiche'}](${r.notebookUrl || '#'})`;
+        const fileUrl = r.fichePath ? buildGitHubFileUrl(r.fichePath) : null;
+        if (fileUrl) {
+          reply += `\n✅ Note sauvegardée → [\`${r.fichePath}\`](${fileUrl})`;
+        } else {
+          reply += `\n✅ Note sauvegardée : ${r.title || 'Fiche'}`;
+        }
         if (r.commitHash) reply += ` • \`${r.commitHash}\``;
       } else if (r.queued) {
-        reply += `\n⏳ En attente: ${r.url}`;
+        reply += `\n⏳ En attente : ${r.url}`;
       } else {
-        reply += `\n❌ Échec: ${r.error}`;
+        const short = (r.error || 'erreur inconnue').split('\n')[0].slice(0, 200);
+        reply += `\n❌ Erreur sauvegarde : ${short}`;
       }
     }
 

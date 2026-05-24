@@ -1,0 +1,23 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 70px);
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.center {
+  text-align: center;
+  padding: 4rem;
+  color: var(--muted);
+}
+
+.empty {
+  padding: 3rem;
+  text-align: center;
+  color: var(--muted);
+}

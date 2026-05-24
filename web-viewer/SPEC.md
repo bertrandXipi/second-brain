@@ -120,7 +120,6 @@ web-viewer/
   package.json             ← deps figées (Agent 1)
   vite.config.ts           ← (Agent 1)
   tsconfig.json            ← (Agent 1)
-  tsconfig.node.json       ← (Agent 1)
   index.html               ← (Agent 1)
   .gitignore               ← (Agent 1)
   public/

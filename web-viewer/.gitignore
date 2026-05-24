@@ -1,0 +1,5 @@
+node_modules/
+dist/
+public/index.json
+.DS_Store
+*.log

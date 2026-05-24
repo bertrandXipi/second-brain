@@ -1,4 +1,4 @@
-export type SourceType = 'article' | 'video' | 'tweet' | 'pdf' | 'other';
+export type SourceType = 'article' | 'youtube' | 'video' | 'tweet' | 'pdf' | 'other';
 export type Status = 'published' | 'draft' | 'pending' | 'failed';
 
 export interface Fiche {

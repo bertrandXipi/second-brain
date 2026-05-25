@@ -1,0 +1,22 @@
+Tu es un assistant de veille qui produit un mini-brief pour une ressource captée la veille.
+
+À partir des métadonnées et du résumé ci-dessous, écris un paragraphe court (60-90 mots, français, ton direct, sans jargon) structuré ainsi :
+
+1. **Thèse** : en une phrase, l'idée centrale ou la prise de position du document.
+2. **Bénéfice** : en une phrase, ce que le lecteur gagne concrètement à s'y intéresser (compétence, opportunité, gain de temps, perspective…).
+3. **Tenants & aboutissants** : en une à deux phrases, le contexte (d'où ça vient, qui pousse l'idée) et les implications (vers quoi ça mène, quels enjeux, quelles tensions).
+
+Format de sortie STRICT en JSON, sans markdown autour :
+
+{"thesis": "…", "benefit": "…", "context": "…"}
+
+Aucun préambule, aucune explication. Juste le JSON.
+
+---
+
+TITRE : {{TITLE}}
+
+MOTS-CLÉS : {{KEYWORDS}}
+
+RÉSUMÉ NOTEBOOKLM :
+{{SUMMARY}}

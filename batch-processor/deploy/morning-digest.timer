@@ -1,0 +1,10 @@
+[Unit]
+Description=Second Brain — daily morning digest trigger (07:00 Europe/Paris)
+
+[Timer]
+OnCalendar=*-*-* 07:00:00 Europe/Paris
+Persistent=true
+Unit=morning-digest@%i.service
+
+[Install]
+WantedBy=timers.target

@@ -7,12 +7,17 @@
   "scripts": {
     "start": "node src/index.js",
     "process": "node src/index.js",
-    "digest": "node src/digest.js"
+    "digest": "node src/digest.js",
+    "morning-digest": "node src/morning-digest.js",
+    "morning-digest:dry": "node src/morning-digest.js --dry-run",
+    "test": "node --test tests/"
   },
   "dependencies": {
     "@mozilla/readability": "^0.5.0",
     "dotenv": "^16.3.1",
+    "exa-js": "^1.10.3",
     "jsdom": "^24.0.0",
+    "nodemailer": "^6.10.1",
     "puppeteer-core": "^24.37.2",
     "simple-git": "^3.22.0"
   },

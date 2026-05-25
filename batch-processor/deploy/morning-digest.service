@@ -1,0 +1,16 @@
+[Unit]
+Description=Second Brain — morning email digest of yesterday's veille
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=%i
+WorkingDirectory=/home/%i/second-brain/batch-processor
+EnvironmentFile=/home/%i/second-brain/batch-processor/.env
+ExecStart=/usr/bin/node src/morning-digest.js
+StandardOutput=append:/home/%i/second-brain/batch-processor/morning-digest.log
+StandardError=append:/home/%i/second-brain/batch-processor/morning-digest-error.log
+
+[Install]
+WantedBy=multi-user.target

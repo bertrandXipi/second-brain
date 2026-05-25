@@ -15,7 +15,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPT_PATH = path.join(__dirname, '../prompts/morning-fiche.txt');
 
 const DRY_RUN = process.argv.includes('--dry-run');
+const USE_LOCAL = process.argv.includes('--local');
 const TZ = 'Europe/Paris';
+
+function parseDateArg() {
+  const idx = process.argv.indexOf('--date');
+  if (idx === -1 || idx + 1 >= process.argv.length) return null;
+  const raw = process.argv[idx + 1];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    console.error(`[morning-digest] invalid date: ${raw} (expected YYYY-MM-DD)`);
+    process.exit(1);
+  }
+  return raw;
+}
+const DATE_OVERRIDE = parseDateArg();
 
 function parisDate(input) {
   return new Date(input).toLocaleDateString('fr-CA', { timeZone: TZ });
@@ -249,16 +262,16 @@ async function main() {
   console.log(`[morning-digest] starting${DRY_RUN ? ' (DRY RUN)' : ''}...`);
 
   let repoRoot;
-  if (DRY_RUN && process.env.OBSIDIAN_VAULT_PATH && existsSync(process.env.OBSIDIAN_VAULT_PATH)) {
+  if ((DRY_RUN || USE_LOCAL) && process.env.OBSIDIAN_VAULT_PATH && existsSync(process.env.OBSIDIAN_VAULT_PATH)) {
     repoRoot = process.env.OBSIDIAN_VAULT_PATH;
-    console.log(`[morning-digest] dry-run using local vault: ${repoRoot}`);
+    console.log(`[morning-digest] using local vault: ${repoRoot}`);
   } else {
     await initGit();
     await pullLatest();
     repoRoot = config.workdir;
   }
 
-  const target = yesterdayParis();
+  const target = DATE_OVERRIDE || yesterdayParis();
   console.log(`[morning-digest] target date (Paris): ${target}`);
 
   const fiches = await getYesterdayFiches(repoRoot, target);

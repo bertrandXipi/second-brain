@@ -8,6 +8,10 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
 }
 
+function sanitizeHtml(html: string): string {
+  return html.replace(/\s*style="[^"]*"/gi, '');
+}
+
 function formatDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('fr-FR', {
@@ -53,7 +57,7 @@ export default function DigestsView() {
 
         <div
           className={styles.htmlContent}
-          dangerouslySetInnerHTML={{ __html: selected.body_html }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(selected.body_html) }}
         />
 
         {linkedFiches.length > 0 && (

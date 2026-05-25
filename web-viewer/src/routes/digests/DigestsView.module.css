@@ -107,19 +107,66 @@
   color: var(--fg);
 }
 
-.htmlContent h1,
-.htmlContent h2,
-.htmlContent h3 {
-  margin-top: 1.2rem;
+.htmlContent h1 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--fg);
+}
+
+.htmlContent h2 {
   font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--fg);
+}
+
+.htmlContent h2 a {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.htmlContent h2 a:hover {
+  text-decoration: underline;
+}
+
+.htmlContent > div {
+  background: var(--bg-alt);
+  border-left: 3px solid var(--accent);
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.htmlContent > div > div:first-child {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-bottom: 0.35rem;
+}
+
+.htmlContent strong {
+  color: var(--fg);
+}
+
+.htmlContent p {
+  margin: 0.35rem 0;
+  color: var(--fg);
 }
 
 .htmlContent a {
   color: var(--accent);
+  text-decoration: none;
 }
 
 .htmlContent a:hover {
   text-decoration: underline;
+}
+
+.htmlContent > p:last-child {
+  margin-top: 1.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
 }
 
 .linkedSection {

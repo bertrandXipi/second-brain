@@ -242,8 +242,8 @@ async function enrichFiche(fiche) {
   return { ...fiche, brief, resource };
 }
 
-async function writeBackup(repoRoot, targetDate, html) {
-  const backupDir = path.join(repoRoot, 'digests-morning');
+async function writeOne(dir, targetDate, html) {
+  const backupDir = path.join(dir, 'digests-morning');
   if (!existsSync(backupDir)) await mkdir(backupDir, { recursive: true });
   const backupFile = path.join(backupDir, `${targetDate}.md`);
   const content = `---
@@ -255,7 +255,16 @@ generated_at: ${new Date().toISOString()}
 ${html}
 `;
   await writeFile(backupFile, content);
-  console.log(`[backup] written digests-morning/${targetDate}.md`);
+  console.log(`[backup] written digests-morning/${targetDate}.md to ${dir}`);
+}
+
+async function writeBackup(repoRoot, targetDate, html) {
+  await writeOne(repoRoot, targetDate, html);
+
+  const vault = process.env.OBSIDIAN_VAULT_PATH;
+  if (vault && path.resolve(vault) !== path.resolve(repoRoot)) {
+    await writeOne(vault, targetDate, html);
+  }
 }
 
 async function main() {

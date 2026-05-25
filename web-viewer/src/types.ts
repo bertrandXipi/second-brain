@@ -41,6 +41,16 @@ export interface Insight {
   body_markdown: string;
 }
 
+export interface MorningDigest {
+  slug: string;
+  date: string;
+  generated_at: string;
+  body_html: string;
+  sujet_count: number;
+  fiches_count: number;
+  linked_fiche_slugs: string[];
+}
+
 export interface FacetCount {
   name: string;
   count: number;
@@ -49,10 +59,11 @@ export interface FacetCount {
 export interface IndexFile {
   generated_at: string;
   vault_path: string;
-  counts: { fiches: number; digests: number; insights: number };
+  counts: { fiches: number; digests: number; insights: number; morningDigests: number };
   fiches: Fiche[];
   digests: Digest[];
   insights: Insight[];
+  morningDigests: MorningDigest[];
   facets: {
     months: string[];
     source_types: string[];

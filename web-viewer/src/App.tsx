@@ -4,6 +4,7 @@ import ListView from './routes/ListView';
 import DetailView from './routes/DetailView';
 import SyntheseView from './routes/SyntheseView';
 import GraphView from './routes/GraphView';
+import DigestsView from './routes/DigestsView';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <Route path="/" element={<ListView />} />
           <Route path="/fiche/:slug" element={<DetailView />} />
           <Route path="/synthese" element={<SyntheseView />} />
+          <Route path="/digests" element={<DigestsView />} />
           <Route path="/graph" element={<GraphView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

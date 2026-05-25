@@ -8,6 +8,7 @@ import type {
   Fiche,
   IndexFile,
   Insight,
+  MorningDigest,
   SourceType,
   Status,
 } from '../src/types';
@@ -74,6 +75,31 @@ function extractWikilinks(md: string): string[] {
     }
   }
   return out;
+}
+
+function parisDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' });
+}
+
+function countSujets(html: string): number {
+  const match = html.match(/Sujet \d+\/(\d+)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+function crossReferenceMorningDigests(
+  morningDigests: MorningDigest[],
+  fiches: Fiche[],
+): MorningDigest[] {
+  const dateToSlugs = new Map<string, string[]>();
+  for (const f of fiches) {
+    const d = parisDate(f.date_captured);
+    if (!dateToSlugs.has(d)) dateToSlugs.set(d, []);
+    dateToSlugs.get(d)!.push(f.slug);
+  }
+  return morningDigests.map((md) => {
+    const linked = dateToSlugs.get(md.date) ?? [];
+    return { ...md, fiches_count: linked.length, linked_fiche_slugs: linked };
+  });
 }
 
 async function* walkMd(dir: string): AsyncGenerator<string> {
@@ -198,6 +224,33 @@ async function readInsights(root: string): Promise<Insight[]> {
   return out;
 }
 
+async function readMorningDigests(root: string): Promise<MorningDigest[]> {
+  const dir = join(root, 'digests-morning');
+  const out: MorningDigest[] = [];
+  for await (const path of walkMd(dir)) {
+    try {
+      const raw = await readFile(path, 'utf8');
+      const fm = matter(raw);
+      const data = fm.data as Record<string, unknown>;
+      const slug = basename(path).replace(/\.md$/i, '');
+      const body = fm.content.trim();
+      out.push({
+        slug,
+        date: asString(data.date) ?? slug,
+        generated_at: asString(data.generated_at) ?? '',
+        body_html: body,
+        sujet_count: countSujets(body),
+        fiches_count: 0,
+        linked_fiche_slugs: [],
+      });
+    } catch (err) {
+      console.warn(`[error] morning-digest ${path}:`, err);
+    }
+  }
+  out.sort((a, b) => (a.date < b.date ? 1 : -1));
+  return out;
+}
+
 function countBy(items: string[]): FacetCount[] {
   const map = new Map<string, number>();
   for (const x of items) map.set(x, (map.get(x) ?? 0) + 1);
@@ -229,19 +282,23 @@ async function main() {
     throw new Error(`VAULT_PATH not a directory: ${VAULT_PATH}`);
   }
 
-  const [fiches, digests, insights] = await Promise.all([
+  const [fiches, digests, insights, rawMorningDigests] = await Promise.all([
     readFiches(VAULT_PATH),
     readDigests(VAULT_PATH),
     readInsights(VAULT_PATH),
+    readMorningDigests(VAULT_PATH),
   ]);
+
+  const morningDigests = crossReferenceMorningDigests(rawMorningDigests, fiches);
 
   const index: IndexFile = {
     generated_at: new Date().toISOString(),
     vault_path: VAULT_PATH,
-    counts: { fiches: fiches.length, digests: digests.length, insights: insights.length },
+    counts: { fiches: fiches.length, digests: digests.length, insights: insights.length, morningDigests: morningDigests.length },
     fiches,
     digests,
     insights,
+    morningDigests,
     facets: buildFacets(fiches),
   };
 
@@ -249,7 +306,7 @@ async function main() {
   await writeFile(OUTPUT, JSON.stringify(index));
   const sizeMb = (Buffer.byteLength(JSON.stringify(index)) / 1024 / 1024).toFixed(2);
   console.log(
-    `[build-index] wrote ${OUTPUT} (${sizeMb} MB) — ${fiches.length} fiches, ${digests.length} digests, ${insights.length} insights in ${Date.now() - t0} ms`,
+    `[build-index] wrote ${OUTPUT} (${sizeMb} MB) — ${fiches.length} fiches, ${digests.length} digests, ${insights.length} insights, ${morningDigests.length} morning digests in ${Date.now() - t0} ms`,
   );
 }
 

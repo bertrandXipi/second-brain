@@ -1,0 +1,156 @@
+.center {
+  padding: 3rem;
+  text-align: center;
+}
+
+.listLayout {
+  padding: 1.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.pageTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 1.5rem;
+  color: var(--fg);
+}
+
+.empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.cardGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.digestCard {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.digestCard:hover {
+  background: color-mix(in srgb, var(--bg) 96%, var(--fg));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.cardDate {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.cardMeta {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  margin-bottom: 0.35rem;
+}
+
+.cardPreview {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.4;
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.detailLayout {
+  padding: 1.5rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.backButton {
+  display: inline-block;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.8rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+}
+
+.backButton:hover {
+  background: color-mix(in srgb, var(--bg) 96%, var(--fg));
+  color: var(--fg);
+}
+
+.detailDate {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.htmlContent {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--fg);
+}
+
+.htmlContent h1,
+.htmlContent h2,
+.htmlContent h3 {
+  margin-top: 1.2rem;
+  font-size: 1rem;
+}
+
+.htmlContent a {
+  color: var(--accent);
+}
+
+.htmlContent a:hover {
+  text-decoration: underline;
+}
+
+.linkedSection {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.linkedH {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+}
+
+.linkedList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.ficheLink {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.ficheLink:hover {
+  text-decoration: underline;
+}

@@ -23,6 +23,12 @@ export default function Header() {
           Synthèse
         </NavLink>
         <NavLink
+          to="/digests"
+          className={({ isActive }) => (isActive ? styles.active : styles.link)}
+        >
+          Digests
+        </NavLink>
+        <NavLink
           to="/graph"
           className={({ isActive }) => (isActive ? styles.active : styles.link)}
         >
@@ -31,7 +37,7 @@ export default function Header() {
       </nav>
       {counts && (
         <div className={styles.counts}>
-          {counts.fiches} fiches · {counts.digests} digests · {counts.insights} insights
+          {counts.fiches} fiches · {counts.digests} digests · {counts.insights} insights · {counts.morningDigests} quotidiens
         </div>
       )}
     </header>

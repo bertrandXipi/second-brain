@@ -65,7 +65,7 @@ export default function DetailView() {
           )}
         </nav>
       </div>
-      <Sidebar fiche={fiche} />
+      <Sidebar fiche={fiche} fiches={state.data.fiches} />
     </article>
   );
 }

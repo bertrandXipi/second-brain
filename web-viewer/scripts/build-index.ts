@@ -159,6 +159,7 @@ async function readFiches(root: string): Promise<Fiche[]> {
         body_markdown: body,
         body_excerpt: excerpt,
         word_count: countWords(body),
+        similar: [],
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message.split('\n')[0] : String(err);
@@ -274,6 +275,127 @@ function buildFacets(fiches: Fiche[]): IndexFile['facets'] {
   };
 }
 
+// ---------------------------------------------------------------------------
+// TF-IDF + cosine similarity
+// ---------------------------------------------------------------------------
+
+const STOPWORDS = new Set([
+  // FR
+  'le', 'la', 'les', 'de', 'du', 'des', 'et', 'un', 'une', 'dans', 'pour',
+  'par', 'sur', 'avec', 'que', 'qui', 'est', 'sont', 'pas', 'plus', 'mais',
+  'ou', 'où', 'donc', 'car', 'ce', 'cette', 'ces', 'son', 'sa', 'ses',
+  'leur', 'leurs', 'aux', 'aussi', 'très', 'bien', 'être', 'avoir', 'fait',
+  'faire', 'tout', 'tous', 'cela', 'comme', 'peut', 'peuvent', 'entre',
+  'après', 'avant', 'pendant', 'sans', 'chez', 'dont', 'alors', 'même',
+  'autres', 'chaque', 'cet', 'cette', 'vers', 'lors', 'cet', 'autre',
+  'deux', 'trois', 'encore', 'notamment', 'ainsi', 'leurs', 'elle', 'elles',
+  'celui', 'ceux', 'peu', 'ici', 'non',
+  // EN
+  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+  'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been',
+  'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+  'could', 'should', 'may', 'might', 'can', 'shall', 'this', 'that',
+  'these', 'those', 'it', 'its', 'not', 'no', 'so', 'if', 'as', 'just',
+  'about', 'into', 'over', 'than', 'then', 'also', 'very', 'only', 'some',
+  'any', 'each', 'all', 'both', 'few', 'more', 'most', 'other', 'up', 'out',
+  'when', 'what', 'which', 'who', 'how', 'they', 'them', 'their', 'we',
+  'you', 'he', 'she', 'his', 'her', 'my', 'your', 'our',
+]);
+
+function tokenize(text: string): string[] {
+  const tokens: string[] = [];
+  for (const raw of text.toLowerCase().split(/[^a-zàâäéèêëîïôöùûüçœæ0-9]+/)) {
+    const t = raw.trim();
+    if (t.length >= 3 && !STOPWORDS.has(t)) tokens.push(t);
+  }
+  return tokens;
+}
+
+function computeSimilarity(fiches: Fiche[]): Map<string, string[]> {
+  // Build corpus: title (×3), keywords, tags, body_excerpt
+  const docs: string[][] = [];
+  for (const f of fiches) {
+    const titleTokens = tokenize(f.title);
+    const kwTokens = tokenize(f.keywords.join(' '));
+    const tagTokens = tokenize(f.tags.join(' '));
+    const excerptTokens = tokenize(f.body_excerpt);
+    docs.push([
+      ...titleTokens, ...titleTokens, ...titleTokens,  // title ×3
+      ...kwTokens,
+      ...tagTokens,
+      ...excerptTokens,
+    ]);
+  }
+
+  const N = docs.length;
+
+  // Document frequencies
+  const df = new Map<string, number>();
+  for (const tokens of docs) {
+    const seen = new Set<string>();
+    for (const t of tokens) {
+      if (!seen.has(t)) {
+        seen.add(t);
+        df.set(t, (df.get(t) ?? 0) + 1);
+      }
+    }
+  }
+
+  // IDF
+  const idf = new Map<string, number>();
+  for (const [term, count] of df) {
+    idf.set(term, Math.log(N / count));
+  }
+
+  // TF-IDF vectors (sparse)
+  const vectors: Map<string, number>[] = [];
+  for (const tokens of docs) {
+    const tf = new Map<string, number>();
+    for (const t of tokens) {
+      tf.set(t, (tf.get(t) ?? 0) + 1);
+    }
+    const vec = new Map<string, number>();
+    for (const [t, cnt] of tf) {
+      vec.set(t, (cnt / tokens.length) * (idf.get(t) ?? 0));
+    }
+    vectors.push(vec);
+  }
+
+  // Cosine similarity per pair → top 5
+  const result = new Map<string, string[]>();
+  for (let i = 0; i < N; i++) {
+    const a = fiches[i];
+    const va = vectors[i];
+    const scores: { slug: string; score: number }[] = [];
+
+    for (let j = 0; j < N; j++) {
+      if (i === j) continue;
+      const b = fiches[j];
+      const vb = vectors[j];
+
+      let dot = 0;
+      // iterate smaller vector
+      const [small, large] = va.size <= vb.size ? [va, vb] : [vb, va];
+      for (const [t, w] of small) {
+        dot += w * (large.get(t) ?? 0);
+      }
+
+      // norms (precomputed would be faster but 369 is small)
+      if (dot === 0) continue;
+      const normA = Math.sqrt([...va.values()].reduce((s, v) => s + v * v, 0));
+      const normB = Math.sqrt([...vb.values()].reduce((s, v) => s + v * v, 0));
+      const sim = dot / (normA * normB);
+
+      scores.push({ slug: b.slug, score: sim });
+    }
+
+    scores.sort((x, y) => y.score - x.score);
+    result.set(a.slug, scores.slice(0, 5).map((s) => s.slug));
+  }
+
+  return result;
+}
+
 async function main() {
   const t0 = Date.now();
   console.log(`[build-index] vault: ${VAULT_PATH}`);
@@ -288,6 +410,13 @@ async function main() {
     readInsights(VAULT_PATH),
     readMorningDigests(VAULT_PATH),
   ]);
+
+  const tSim = Date.now();
+  const similarity = computeSimilarity(fiches);
+  for (const f of fiches) {
+    f.similar = similarity.get(f.slug) ?? [];
+  }
+  console.log(`[build-index] similarity computed in ${Date.now() - tSim} ms`);
 
   const morningDigests = crossReferenceMorningDigests(rawMorningDigests, fiches);
 

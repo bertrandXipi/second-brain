@@ -111,6 +111,39 @@ function extractSummary(body) {
   return (match?.[1] || body).trim().slice(0, 4000);
 }
 
+function firstSentence(text) {
+  const m = text.match(/^([^.!?]{30,}?[.!?])\s/);
+  return m ? m[1].trim() : text.slice(0, 200).trim();
+}
+
+function extractNbSection(body, sectionNum) {
+  const pattern = new RegExp(
+    `###\\s+${sectionNum}\\.\\s+[^\n]+\n+([\\s\\S]*?)(?=\n###\\s+\\d+\\.|$)`,
+    'i'
+  );
+  const m = body.match(pattern);
+  return m ? m[1].trim() : null;
+}
+
+function extractBriefFromNotebookLM(body) {
+  const ctx = extractNbSection(body, 1);
+  const reco = extractNbSection(body, 5);
+
+  const thesis = ctx ? firstSentence(ctx) : null;
+  const benefit = reco ? firstSentence(reco) : (ctx ? firstSentence(ctx) : null);
+  const context = ctx
+    ? ctx.replace(firstSentence(ctx), '').trim().slice(0, 400).replace(/^[.!?]\s*/, '')
+    : null;
+
+  if (!thesis) return null;
+
+  return {
+    thesis: thesis.slice(0, 300),
+    benefit: (benefit || '').slice(0, 300),
+    context: (context || '').slice(0, 300),
+  };
+}
+
 function pickLlmCmd() {
   if (process.env.MORNING_LLM_CMD) return process.env.MORNING_LLM_CMD;
   const candidates = ['gemini', 'llm -m deepseek-chat'];
@@ -126,7 +159,7 @@ function pickLlmCmd() {
 
 const LLM_CMD = pickLlmCmd();
 
-async function generateBrief(fiche) {
+async function generateBriefLLM(fiche) {
   if (!LLM_CMD) throw new Error('no LLM CLI available (gemini or llm)');
 
   const promptTemplate = await readFile(PROMPT_PATH, 'utf-8');
@@ -150,6 +183,14 @@ async function generateBrief(fiche) {
   } finally {
     try { unlinkSync(tempFile); } catch {}
   }
+}
+
+async function generateBrief(fiche) {
+  const fromNb = extractBriefFromNotebookLM(fiche.summary);
+  if (fromNb) return fromNb;
+
+  console.log(`[brief] no NotebookLM summary for "${fiche.title.slice(0, 50)}", falling back to LLM`);
+  return generateBriefLLM(fiche);
 }
 
 function escapeHtml(s) {

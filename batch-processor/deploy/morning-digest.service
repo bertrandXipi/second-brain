@@ -8,6 +8,7 @@ Type=oneshot
 User=%i
 WorkingDirectory=/home/%i/second-brain/batch-processor
 EnvironmentFile=/home/%i/second-brain/batch-processor/.env
+Environment="GEMINI_CLI_TRUST_WORKSPACE=true"
 ExecStart=/usr/bin/node src/morning-digest.js
 StandardOutput=append:/home/%i/second-brain/batch-processor/morning-digest.log
 StandardError=append:/home/%i/second-brain/batch-processor/morning-digest-error.log

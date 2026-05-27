@@ -11,9 +11,14 @@ function domain(url: string): string {
 
 interface Props {
   fiche: Fiche;
+  fiches: Fiche[];
 }
 
-export default function Sidebar({ fiche }: Props) {
+export default function Sidebar({ fiche, fiches }: Props) {
+  const slugMap = new Map(fiches.map((f) => [f.slug, f]));
+  const similar = fiche.similar
+    .map((s) => slugMap.get(s))
+    .filter((f): f is Fiche => f != null);
   return (
     <aside className={styles.aside}>
       <section>
@@ -102,6 +107,22 @@ export default function Sidebar({ fiche }: Props) {
           >
             Message Discord ↗
           </a>
+        </section>
+      )}
+
+      {similar.length > 0 && (
+        <section>
+          <h4 className={styles.label}>Fiches similaires</h4>
+          <ul className={styles.similarList}>
+            {similar.map((s) => (
+              <li key={s.slug}>
+                <a href={`/fiche/${s.slug}`} className={styles.similarLink}>
+                  <span className={styles.similarTitle}>{s.title}</span>
+                  <span className={styles.similarMonth}>{s.month}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </aside>

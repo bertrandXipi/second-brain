@@ -20,6 +20,7 @@ export interface Fiche {
   body_markdown: string;
   body_excerpt: string;
   word_count: number;
+  similar: string[];
 }
 
 export interface Digest {
